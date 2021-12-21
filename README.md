@@ -1,1 +1,4 @@
-# engine-w
+run server   
+
+go run main.go
+
