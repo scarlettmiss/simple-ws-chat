@@ -10,6 +10,12 @@ type Repository struct {
 	users map[string]*user.User
 }
 
+func New() *Repository {
+	return &Repository{
+		users: map[string]*user.User{},
+	}
+}
+
 func (r *Repository) CreateUser() (*user.User, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
@@ -40,20 +46,6 @@ func (r *Repository) Users() (map[string]*user.User, error) {
 	return r.users, nil
 }
 
-func (r *Repository) UpdateUser(u *user.User) error {
-	r.mux.Lock()
-	defer r.mux.Unlock()
-
-	_, ok := r.users[u.Id()]
-	if !ok {
-		return user.ErrNotFound
-	}
-
-	r.users[u.Id()] = u
-
-	return nil
-}
-
 func (r *Repository) DeleteUser(id string) error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
@@ -67,10 +59,4 @@ func (r *Repository) DeleteUser(id string) error {
 
 	return nil
 
-}
-
-func New() *Repository {
-	return &Repository{
-		users: map[string]*user.User{},
-	}
 }

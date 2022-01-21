@@ -11,6 +11,7 @@ func New() *User {
 		id: shortuuid.New(),
 	}
 }
+
 func (u *User) Id() string {
 	return u.id
 }

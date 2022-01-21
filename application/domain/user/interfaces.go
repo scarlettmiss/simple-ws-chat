@@ -8,8 +8,7 @@ var (
 )
 
 type Service interface {
-	CreateUser(id string) (*User, error)
-	UpdateUser(id string) error
+	CreateUser() (*User, error)
 	DeleteUser(id string) error
 }
 
@@ -17,6 +16,5 @@ type Repository interface {
 	CreateUser() (*User, error)
 	User(id string) (*User, error)
 	Users() (map[string]*User, error)
-	UpdateUser(u *User) error
 	DeleteUser(id string) error
 }

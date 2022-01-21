@@ -69,18 +69,3 @@ func (s *Service) LeaveSession(id, userId string) error {
 
 	return s.sessions.UpdateSession(sess)
 }
-
-func New(sessions session.Repository, users user.Repository) (*Service, error) {
-	if sessions == nil {
-		return nil, errors.New("invalid session repo")
-	}
-
-	if users == nil {
-		return nil, errors.New("invalid user repo")
-	}
-
-	return &Service{
-		sessions: sessions,
-		users:    users,
-	}, nil
-}

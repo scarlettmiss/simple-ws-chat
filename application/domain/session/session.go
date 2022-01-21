@@ -11,6 +11,13 @@ type Session struct {
 	users map[string]*user.User
 }
 
+func New() *Session {
+	return &Session{
+		id:    shortuuid.New(),
+		users: map[string]*user.User{},
+	}
+}
+
 func (s *Session) Users() map[string]*user.User {
 	return s.users
 }

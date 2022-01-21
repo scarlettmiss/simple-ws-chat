@@ -2,10 +2,14 @@ package main
 
 import (
 	"github.com/scarlettmiss/engine-w/application"
+	"github.com/scarlettmiss/engine-w/application/repositories/sessionrepo"
+	"github.com/scarlettmiss/engine-w/application/repositories/userrepo"
 )
 
 func main() {
-	app, err := application.New(nil, nil)
+	sessionRepo := sessionrepo.New()
+	userRepo := userrepo.New()
+	app, err := application.New(sessionRepo, userRepo)
 	if err != nil {
 		panic(err)
 	}
