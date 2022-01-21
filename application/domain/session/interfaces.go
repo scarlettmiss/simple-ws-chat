@@ -1,17 +1,22 @@
 package session
 
-import "github.com/scarlettmiss/engine-w/application/domain/user"
+import "errors"
+
+var (
+	// ErrNotFound is returned when a session is not found
+	ErrNotFound = errors.New("session not found")
+)
 
 type Service interface {
-	CreateSession() (*Session, error)
-	JoinSession(u user.User, s *Session) error
-	LeaveSession(id string) error
+	CreateSession(userId string) (*Session, error)
+	JoinSession(id, userId string) error
+	LeaveSession(id, userId string) error
 }
 
 type Repository interface {
 	CreateSession() (*Session, error)
 	Session(id string) (*Session, error)
 	Sessions() (map[string]*Session, error)
-	UpdateSession(s *Session) (*Session, error)
+	UpdateSession(s *Session) error
 	DeleteSession(id string) error
 }

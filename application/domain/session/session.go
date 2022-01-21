@@ -2,6 +2,7 @@ package session
 
 import (
 	"errors"
+	"github.com/lithammer/shortuuid"
 	"github.com/scarlettmiss/engine-w/application/domain/user"
 )
 
@@ -29,13 +30,13 @@ func (s *Session) AddUser(u *user.User) error {
 	return nil
 }
 
-func (s *Session) RemoveUser(u *user.User) error {
-	_, exists := s.users[u.Id()]
+func (s *Session) RemoveUser(userId string) error {
+	_, exists := s.users[userId]
 	if !exists {
 		return errors.New("user does not exist")
 	}
 
-	delete(s.users, u.Id())
+	delete(s.users, userId)
 
 	return nil
 }
