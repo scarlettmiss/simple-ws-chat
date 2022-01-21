@@ -11,18 +11,6 @@ type Service struct {
 	users    user.Repository
 }
 
-func (s *Service) CreateSession() (*session.Session, error) {
-	panic("implement me")
-}
-
-func (s *Service) JoinSession(u user.User, sess *session.Session) error {
-	panic("implement me")
-}
-
-func (s *Service) LeaveSession(id string) error {
-	panic("implement me")
-}
-
 func New(sessions session.Repository, users user.Repository) (*Service, error) {
 	if sessions == nil {
 		return nil, errors.New("invalid session repo")
@@ -36,4 +24,48 @@ func New(sessions session.Repository, users user.Repository) (*Service, error) {
 		sessions: sessions,
 		users:    users,
 	}, nil
+}
+
+func (s *Service) CreateSession(userId string) (*session.Session, error) {
+	sess, err := s.sessions.CreateSession()
+	if err != nil {
+		return nil, err
+	}
+
+	err = s.JoinSession(sess.Id(), userId)
+	if err != nil {
+		return nil, err
+	}
+
+	return sess, nil
+}
+
+func (s *Service) JoinSession(id, userId string) error {
+	sess, err := s.sessions.Session(id)
+	if err != nil {
+		return err
+	}
+	u, err := s.users.User(userId)
+	if err != nil {
+		return err
+	}
+	return sess.AddUser(u)
+}
+
+func (s *Service) LeaveSession(id, userId string) error {
+	sess, err := s.sessions.Session(id)
+	if err != nil {
+		return err
+	}
+
+	err = sess.RemoveUser(userId)
+	if err != nil {
+		return err
+	}
+
+	if len(sess.Users()) == 0 {
+		return s.sessions.DeleteSession(id)
+	}
+
+	return s.sessions.UpdateSession(sess)
 }
