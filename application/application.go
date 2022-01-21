@@ -32,25 +32,21 @@ func New(sessions session.Repository, users user.Repository) (*Application, erro
 }
 
 func (app *Application) CreateSession(userId string) (*session.Session, error) {
-	sess, err := app.sessionService.CreateSession(userId)
-	if err != nil {
-		return nil, err
-	}
-	return sess, nil
+	return app.sessionService.CreateSession(userId)
 }
 
 func (app *Application) JoinSession(id, userId string) error {
-	err := app.sessionService.JoinSession(id, userId)
-	if err != nil {
-		return err
-	}
-	return nil
+	return app.sessionService.JoinSession(id, userId)
 }
 
 func (app *Application) LeaveSession(id, userId string) error {
-	err := app.sessionService.LeaveSession(id, userId)
-	if err != nil {
-		return err
-	}
-	return nil
+	return app.sessionService.LeaveSession(id, userId)
+}
+
+func (app *Application) CreateUser() (*user.User, error) {
+	return app.UserService.CreateUser()
+}
+
+func (app *Application) DeleteUser(id string) error {
+	return app.UserService.DeleteUser(id)
 }
