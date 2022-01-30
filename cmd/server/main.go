@@ -5,6 +5,8 @@ import (
 	"github.com/scarlettmiss/engine-w/application"
 	"github.com/scarlettmiss/engine-w/application/repositories/sessionrepo"
 	"github.com/scarlettmiss/engine-w/application/repositories/userrepo"
+	"github.com/scarlettmiss/engine-w/socket"
+	"net/http"
 	"os"
 	"os/signal"
 )
@@ -19,6 +21,15 @@ func main() {
 	}
 
 	//create websocket server
+	wsAPI, err := socket.New(app)
+	if err != nil {
+		panic(err)
+	}
+	http.HandleFunc(
+		"/ws", func(w http.ResponseWriter, req *http.Request) {
+			wsAPI.Handle(w, req)
+		},
+	)
 	fmt.Println(app)
 
 	c := make(chan os.Signal, 1)
