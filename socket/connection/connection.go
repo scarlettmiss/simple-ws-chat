@@ -1,10 +1,15 @@
 package connection
 
 import (
+	"errors"
 	"github.com/gorilla/websocket"
 	"github.com/lithammer/shortuuid"
-	"github.com/scarlettmiss/engine-w/socket/hub"
 	"sync"
+)
+
+var (
+	//ErrInvalidConnection invalid connection
+	ErrInvalidConnection = errors.New("connection not provided")
 )
 
 type Connection struct {
@@ -15,7 +20,7 @@ type Connection struct {
 
 func New(conn *websocket.Conn) (*Connection, error) {
 	if conn == nil {
-		return nil, hub.ErrInvalidConnection
+		return nil, ErrInvalidConnection
 	}
 	return &Connection{
 		id:   shortuuid.New(),

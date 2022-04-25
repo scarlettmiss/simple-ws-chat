@@ -1,16 +1,10 @@
 package hub
 
 import (
-	"errors"
 	"github.com/gorilla/websocket"
 	"github.com/scarlettmiss/engine-w/application/domain/session"
 	"github.com/scarlettmiss/engine-w/socket/connection"
 	"sync"
-)
-
-var (
-	//ErrInvalidConnection invalid connection
-	ErrInvalidConnection = errors.New("connection not provided")
 )
 
 type Repository struct {
