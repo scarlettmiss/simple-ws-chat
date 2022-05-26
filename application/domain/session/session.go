@@ -6,15 +6,29 @@ import (
 	"github.com/scarlettmiss/engine-w/application/domain/user"
 )
 
+type Constraint string
+
+const (
+	ConstraintNone           Constraint = "none"
+	ConstraintFriendsOnly    Constraint = "friendsOnly"
+	ConstraintInvitationOnly Constraint = "invitationOnly"
+)
+
 type Session struct {
-	id    string
-	users map[string]*user.User
+	id         string
+	users      map[string]*user.User
+	capacity   int
+	minRating  int
+	constraint Constraint
 }
 
-func New() *Session {
+func New(capacity int, minRating int, constraint Constraint) *Session {
 	return &Session{
-		id:    shortuuid.New(),
-		users: map[string]*user.User{},
+		id:         shortuuid.New(),
+		users:      map[string]*user.User{},
+		capacity:   capacity,
+		minRating:  minRating,
+		constraint: constraint,
 	}
 }
 

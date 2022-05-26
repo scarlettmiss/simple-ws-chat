@@ -19,8 +19,12 @@ func New(users user.Repository) (*Service, error) {
 	}, nil
 }
 
-func (s *Service) CreateUser() (*user.User, error) {
-	return s.users.CreateUser()
+func (s *Service) CreateUser(username string, email string, password string) (*user.User, error) {
+	return s.users.CreateUser(username, email, password)
+}
+
+func (s *Service) UpdateUser(u *user.User) error {
+	return s.users.UpdateUser(u)
 }
 
 func (s *Service) DeleteUser(id string) error {

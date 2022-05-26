@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"github.com/gin-gonic/gin"
 	"github.com/scarlettmiss/engine-w/application"
 	"github.com/scarlettmiss/engine-w/application/repositories/sessionrepo"
@@ -12,8 +11,6 @@ import (
 	"os"
 	"os/signal"
 )
-
-var addr = flag.String("addr", ":8080", "http service address")
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.URL)

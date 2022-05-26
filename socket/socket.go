@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/scarlettmiss/engine-w/application"
+	"github.com/scarlettmiss/engine-w/application/domain/user"
 	"github.com/scarlettmiss/engine-w/socket/hub"
 	"log"
 	"net/http"
@@ -39,38 +40,63 @@ func New(application *application.Application) (*API, error) {
 	return api, nil
 }
 
-type DefaultMessage string
-type UserCreationMessage string
+type UserInfoMessage []byte
+
+type UserInfo struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 type UserUpdateMessage string
 
-type Error struct {
-	ErrorCode    int
-	ErrorMessage string
+type ErrorMessage struct {
+	Error string
 }
 
-func (api *API) handleDefaultMessage(userId string, message DefaultMessage) {
-	//fetch user from id
-	//do something with user
-
-	//1. either send response to user
-	//2. or send something to some other user
-	api.broadcast(userId, []byte(userId+" said "+string(message)))
+type UserCreatedEvent struct {
+	Type MessageType
+	User *user.User
 }
 
-func (api *API) handleUserCreation(connectionId string, message UserCreationMessage) {
-	_, err := api.Application.CreateUser()
+func (api *API) handleDefaultMessage(connectionId string) {
+	api.errorMessage(connectionId, "not a valid action")
+}
+
+func (api *API) errorMessage(connectionId string, errorMessage string) {
+	fmt.Println(errorMessage)
+	m, err := json.Marshal(ErrorMessage{Error: errorMessage})
 	if err != nil {
-		m, err := json.Marshal(Error{ErrorCode: 1, ErrorMessage: "User could not be created"})
-		if err != nil {
-			fmt.Println("Could not marshal error message", err)
-		}
-		api.sendSelf(connectionId, m)
+		fmt.Println("Could not marshal error message", err)
 		return
 	}
 
+	api.sendSelf(connectionId, m)
 }
 
-func (api *API) handleUserUpdate(message UserCreationMessage) {
+func (api *API) handleUserCreation(connectionId string, message UserInfoMessage) {
+	var userInfo UserInfo
+	err := json.Unmarshal(message, &userInfo)
+	if err != nil {
+		api.errorMessage(connectionId, "Could not Create User")
+		return
+	}
+	u, err := api.Application.CreateUser(userInfo.Username, userInfo.Email, userInfo.Password)
+	if err != nil {
+		api.errorMessage(connectionId, "Could not Create User")
+		return
+	}
+
+	userCreated, err := json.Marshal(UserCreatedEvent{Type: "userCreated", User: u})
+	if err != nil {
+		fmt.Println("Could not marshal error message", err)
+		return
+	}
+	api.sendSelf(connectionId, userCreated)
+
+}
+
+func (api *API) handleUserUpdate(message UserInfoMessage) {
 	//fetch user from id
 	//do something with user
 
@@ -89,11 +115,11 @@ func (api *API) handleMessage(connectionId string, message []byte) {
 
 	switch messageType {
 	case CreateUser:
-		api.handleUserCreation(connectionId, UserCreationMessage(message))
+		api.handleUserCreation(connectionId, message)
 	case UpdateUser:
-		api.handleUserUpdate(UserCreationMessage(message))
+		api.handleUserCreation(connectionId, message)
 	default:
-		api.handleDefaultMessage(connectionId, DefaultMessage(message))
+		api.handleDefaultMessage(connectionId)
 	}
 }
 

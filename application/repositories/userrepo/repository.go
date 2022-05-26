@@ -16,11 +16,11 @@ func New() *Repository {
 	}
 }
 
-func (r *Repository) CreateUser() (*user.User, error) {
+func (r *Repository) CreateUser(username string, email string, password string) (*user.User, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	u := user.New()
+	u := user.New(username, email, password)
 
 	r.users[u.Id()] = u
 
@@ -44,6 +44,20 @@ func (r *Repository) Users() (map[string]*user.User, error) {
 	defer r.mux.Unlock()
 
 	return r.users, nil
+}
+
+func (r *Repository) UpdateUser(u *user.User) error {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+
+	_, ok := r.users[u.Id()]
+	if !ok {
+		return user.ErrNotFound
+	}
+	r.users[u.Id()] = u
+
+	return nil
+
 }
 
 func (r *Repository) DeleteUser(id string) error {
