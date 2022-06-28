@@ -47,8 +47,8 @@ func (app *Application) CreateUser(username string, email string, password strin
 	return app.UserService.CreateUser(username, email, password)
 }
 
-func (app *Application) UpdateUser(user *user.User) error {
-	return app.UserService.UpdateUser(user)
+func (app *Application) UpdateUser(userId string, username *string, email *string, password *string) (*user.User, error) {
+	return app.UserService.UpdateUser(userId, username, email, password)
 }
 
 func (app *Application) DeleteUser(id string) error {

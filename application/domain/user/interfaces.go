@@ -9,7 +9,7 @@ var (
 
 type Service interface {
 	CreateUser(username string, email string, password string) (*User, error)
-	UpdateUser(u *User) error
+	UpdateUser(userId string, username *string, email *string, password *string) (*User, error)
 	DeleteUser(id string) error
 }
 

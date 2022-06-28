@@ -1,6 +1,7 @@
 package socket
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
@@ -18,6 +19,8 @@ type API struct {
 }
 
 type MessageType string
+
+const contextRequest = 'contextRequest'
 
 const (
 	CreateUser             MessageType = "createUser"
@@ -42,10 +45,17 @@ func New(application *application.Application) (*API, error) {
 
 type UserInfoMessage []byte
 
-type UserInfo struct {
+type UserCreationInfo struct {
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+type UserUpdateInfo struct {
+	UserId   string  `json:"user_id"`
+	Username *string `json:"username"`
+	Email    *string `json:"email"`
+	Password *string `json:"password"`
 }
 
 type UserUpdateMessage string
@@ -54,7 +64,7 @@ type ErrorMessage struct {
 	Error string
 }
 
-type UserCreatedEvent struct {
+type UserResponceEvent struct {
 	Type MessageType
 	User *user.User
 }
@@ -75,7 +85,7 @@ func (api *API) errorMessage(connectionId string, errorMessage string) {
 }
 
 func (api *API) handleUserCreation(connectionId string, message UserInfoMessage) {
-	var userInfo UserInfo
+	var userInfo UserCreationInfo
 	err := json.Unmarshal(message, &userInfo)
 	if err != nil {
 		api.errorMessage(connectionId, "Could not Create User")
@@ -87,7 +97,7 @@ func (api *API) handleUserCreation(connectionId string, message UserInfoMessage)
 		return
 	}
 
-	userCreated, err := json.Marshal(UserCreatedEvent{Type: "userCreated", User: u})
+	userCreated, err := json.Marshal(UserResponceEvent{Type: "userCreated", User: u})
 	if err != nil {
 		fmt.Println("Could not marshal error message", err)
 		return
@@ -96,18 +106,32 @@ func (api *API) handleUserCreation(connectionId string, message UserInfoMessage)
 
 }
 
-func (api *API) handleUserUpdate(message UserInfoMessage) {
-	//fetch user from id
-	//do something with user
+func (api *API) handleUserUpdate(connectionId string, message UserInfoMessage) {
+	var userInfo UserUpdateInfo
+	err := json.Unmarshal(message, &userInfo)
+	if err != nil {
+		api.errorMessage(connectionId, "Could not update User")
+		return
+	}
+	u, err := api.Application.UpdateUser(userInfo.UserId, userInfo.Username, userInfo.Email, userInfo.Password)
+	if err != nil {
+		api.errorMessage(connectionId, "Could not update User")
+		return
+	}
 
-	//1. either send response to user
-	//2. or send something to some other user
-	//api.broadcast(userId, []byte(userId+" said "+string(message)))
+	userUpdated, err := json.Marshal(UserResponceEvent{Type: "userUpdated", User: u})
+	if err != nil {
+		fmt.Println("Could not marshal error message", err)
+		return
+	}
+	api.sendSelf(connectionId, userUpdated)
+
 }
 
-func (api *API) handleMessage(connectionId string, message []byte) {
+func (api *API) handleMessage(ctx context.Context) {
+	ctx.
 	var messageType MessageType
-	err := json.Unmarshal(message, &messageType)
+	err := json.Unmarshal(ctx.message, &messageType)
 	if err != nil {
 		log.Println(err, message)
 		return
@@ -117,7 +141,7 @@ func (api *API) handleMessage(connectionId string, message []byte) {
 	case CreateUser:
 		api.handleUserCreation(connectionId, message)
 	case UpdateUser:
-		api.handleUserCreation(connectionId, message)
+		api.handleUserUpdate(connectionId, message)
 	default:
 		api.handleDefaultMessage(connectionId)
 	}
@@ -125,6 +149,23 @@ func (api *API) handleMessage(connectionId string, message []byte) {
 
 func (api *API) broadcast(connectionId string, message []byte) {
 	connections, err := api.connectionRepo.Connections()
+	if err != nil {
+		return
+	}
+
+	for _, conn := range connections {
+		if conn.Id() == connectionId {
+			return
+		}
+		if err := conn.Conn().WriteMessage(websocket.TextMessage, message); err != nil {
+			log.Println(err, message)
+			continue
+		}
+	}
+}
+func (api *API) roomBroadcast(connectionId string, message []byte) {
+	connections, err := api.connectionRepo.Connections()
+	api.Application.JoinSession()
 	if err != nil {
 		return
 	}
@@ -165,20 +206,30 @@ func (api *API) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Println("new connection!", c.Id())
+
 	if err != nil {
 		log.Println(err)
 		return
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	for {
+
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
 			}
-
 			return
 		}
+		connCtx := context.WithValue(ctx, contextRequest, map[string]interface{}{
+			"connId":    c.Id(),
+			"message":   message,
+			"sessionId": nil,
+		})
 
-		api.handleMessage(c.Id(), message)
+		api.handleMessage(connCtx)
 	}
 }

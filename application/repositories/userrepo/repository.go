@@ -3,6 +3,7 @@ package userrepo
 import (
 	"github.com/scarlettmiss/engine-w/application/domain/user"
 	"sync"
+	"time"
 )
 
 type Repository struct {
@@ -49,6 +50,8 @@ func (r *Repository) Users() (map[string]*user.User, error) {
 func (r *Repository) UpdateUser(u *user.User) error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
+
+	u.UpdatedOn = time.Now()
 
 	_, ok := r.users[u.Id()]
 	if !ok {
