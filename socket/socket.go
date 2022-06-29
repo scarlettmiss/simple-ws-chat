@@ -20,7 +20,7 @@ type API struct {
 
 type MessageType string
 
-const contextRequest = 'contextRequest'
+const contextRequest = "contextRequest"
 
 const (
 	CreateUser             MessageType = "createUser"
@@ -129,21 +129,41 @@ func (api *API) handleUserUpdate(connectionId string, message UserInfoMessage) {
 }
 
 func (api *API) handleMessage(ctx context.Context) {
-	ctx.
-	var messageType MessageType
-	err := json.Unmarshal(ctx.message, &messageType)
-	if err != nil {
-		log.Println(err, message)
+
+	vals, ok := ctx.Value(contextRequest).(map[string]any)
+	if !ok {
 		return
 	}
 
-	switch messageType {
+	connId, ok := vals["connId"].(string)
+	if !ok {
+		return
+	}
+
+	msg, ok := vals["message"].([]byte)
+	if !ok {
+		return
+	}
+
+	type EventType struct {
+		Type MessageType `json:"type"`
+	}
+
+	var et EventType
+
+	err := json.Unmarshal(msg, &et)
+	if err != nil {
+		log.Println(err, msg)
+		return
+	}
+
+	switch et.Type {
 	case CreateUser:
-		api.handleUserCreation(connectionId, message)
+		api.handleUserCreation(connId, msg)
 	case UpdateUser:
-		api.handleUserUpdate(connectionId, message)
+		api.handleUserUpdate(connId, msg)
 	default:
-		api.handleDefaultMessage(connectionId)
+		api.handleDefaultMessage(connId)
 	}
 }
 
@@ -165,7 +185,6 @@ func (api *API) broadcast(connectionId string, message []byte) {
 }
 func (api *API) roomBroadcast(connectionId string, message []byte) {
 	connections, err := api.connectionRepo.Connections()
-	api.Application.JoinSession()
 	if err != nil {
 		return
 	}
