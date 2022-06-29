@@ -130,7 +130,7 @@ func (api *API) handleUserUpdate(connectionId string, message UserInfoMessage) {
 
 func (api *API) handleMessage(ctx context.Context) {
 
-	vals, ok := ctx.Value(contextRequest).(map[string]any)
+	vals, ok := ctx.Value(contextRequest).(map[string]interface{})
 	if !ok {
 		return
 	}
