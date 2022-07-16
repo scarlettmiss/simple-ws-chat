@@ -23,8 +23,28 @@ func (s *Service) CreateUser(username string, email string, password string) (*u
 	return s.users.CreateUser(username, email, password)
 }
 
-func (s *Service) UpdateUser(u *user.User) error {
-	return s.users.UpdateUser(u)
+func (s *Service) UpdateUser(userId string, username *string, email *string, password *string) (*user.User, error) {
+	u, err := s.users.User(userId)
+	if err != nil {
+		return nil, err
+	}
+
+	if username != nil {
+		u.Username = *username
+	}
+	if email != nil {
+		u.Email = *email
+	}
+	if password != nil {
+		u.Password = *password
+	}
+
+	err = s.users.UpdateUser(u)
+	if err != nil {
+		return nil, err
+	}
+
+	return u, nil
 }
 
 func (s *Service) DeleteUser(id string) error {

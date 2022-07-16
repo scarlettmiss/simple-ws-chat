@@ -3,182 +3,157 @@ package socket
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/websocket"
+	socketio "github.com/googollee/go-socket.io"
 	"github.com/scarlettmiss/engine-w/application"
-	"github.com/scarlettmiss/engine-w/application/domain/user"
-	"github.com/scarlettmiss/engine-w/socket/hub"
+	"github.com/scarlettmiss/engine-w/application/domain/session"
 	"log"
-	"net/http"
 )
 
 type API struct {
 	*application.Application
-	upgrader       websocket.Upgrader
-	connectionRepo *hub.Repository
+	*socketio.Server
 }
 
-type MessageType string
-
 const (
-	CreateUser             MessageType = "createUser"
-	UpdateUser             MessageType = "updateUser"
-	CreateRoom             MessageType = "createRoom"
-	UserJoinRoom           MessageType = "userJoinRoom"
-	UserAddFriend          MessageType = "userAddFriend"
-	UserRequestMatchMaking MessageType = "userRequestMatchMaking"
+	CreateUser             string = "createUser"
+	UpdateUser             string = "updateUser"
+	CreateRoom             string = "createRoom"
+	UserJoinRoom           string = "userJoinRoom"
+	UserAddFriend          string = "userAddFriend"
+	UserRequestMatchMaking string = "userRequestMatchMaking"
 )
 
 func New(application *application.Application) (*API, error) {
+	server := socketio.NewServer(nil)
 	api := &API{
 		Application: application,
-		upgrader: websocket.Upgrader{
-			ReadBufferSize:  1024,
-			WriteBufferSize: 1024,
-		},
-		connectionRepo: hub.New(),
+		Server:      server,
 	}
 	return api, nil
 }
 
-type UserInfoMessage []byte
-
-type UserInfo struct {
+type UserCreationInfo struct {
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-type UserUpdateMessage string
-
-type ErrorMessage struct {
-	Error string
+type UserUpdateInfo struct {
+	UserId   string  `json:"user_id"`
+	Username *string `json:"username"`
+	Email    *string `json:"email"`
+	Password *string `json:"password"`
 }
 
-type UserCreatedEvent struct {
-	Type MessageType
-	User *user.User
+type SessionInfo struct {
+	UserId     string             `json:"userId"`
+	Capacity   int                `json:"capacity"`
+	Rating     int                `json:"rating"`
+	Constraint session.Constraint `json:"constraint"`
 }
 
-func (api *API) handleDefaultMessage(connectionId string) {
-	api.errorMessage(connectionId, "not a valid action")
+func (api *API) handleDefaultMessage(c socketio.Conn) {
+	api.errorMessage(c, "not a valid action")
 }
 
-func (api *API) errorMessage(connectionId string, errorMessage string) {
+func (api *API) errorMessage(c socketio.Conn, errorMessage string) {
 	fmt.Println(errorMessage)
-	m, err := json.Marshal(ErrorMessage{Error: errorMessage})
-	if err != nil {
-		fmt.Println("Could not marshal error message", err)
-		return
-	}
-
-	api.sendSelf(connectionId, m)
+	c.Emit("error", errorMessage)
 }
 
-func (api *API) handleUserCreation(connectionId string, message UserInfoMessage) {
-	var userInfo UserInfo
-	err := json.Unmarshal(message, &userInfo)
+func (api *API) handleUserCreation(c socketio.Conn, message string) {
+	log.Println("create user:", message)
+
+	var userInfo UserCreationInfo
+	err := json.Unmarshal([]byte(message), &userInfo)
 	if err != nil {
-		api.errorMessage(connectionId, "Could not Create User")
+		api.errorMessage(c, "Could not Create User")
 		return
 	}
 	u, err := api.Application.CreateUser(userInfo.Username, userInfo.Email, userInfo.Password)
 	if err != nil {
-		api.errorMessage(connectionId, "Could not Create User")
+		api.errorMessage(c, "Could not Create User")
 		return
 	}
+	c.Emit("userCreated", u)
+}
 
-	userCreated, err := json.Marshal(UserCreatedEvent{Type: "userCreated", User: u})
+func (api *API) handleUserRoomCreation(c socketio.Conn, message string) {
+	log.Println("create session:", message)
+
+	var sessionInfo SessionInfo
+	err := json.Unmarshal([]byte(message), &sessionInfo)
 	if err != nil {
-		fmt.Println("Could not marshal error message", err)
+		api.errorMessage(c, "Could not Create room")
 		return
 	}
-	api.sendSelf(connectionId, userCreated)
+	s, err := api.CreateSession(sessionInfo.UserId, sessionInfo.Capacity, sessionInfo.Rating, sessionInfo.Constraint)
+	if err != nil {
+		api.errorMessage(c, "Could not Create room")
+		return
+	}
+	c.Join(s.Id())
+	log.Println("joined session:", s.Id())
+	c.Emit("jointRoom", s.Id())
+}
+
+func (api *API) handleUserUpdate(c socketio.Conn, message string) {
+	var userInfo UserUpdateInfo
+	err := json.Unmarshal([]byte(message), &userInfo)
+	if err != nil {
+		api.errorMessage(c, "Could not update User")
+		return
+	}
+	u, err := api.Application.UpdateUser(userInfo.UserId, userInfo.Username, userInfo.Email, userInfo.Password)
+	if err != nil {
+		api.errorMessage(c, "Could not update User")
+		return
+	}
+	c.Emit("userUpdated", u)
 
 }
 
-func (api *API) handleUserUpdate(message UserInfoMessage) {
-	//fetch user from id
-	//do something with user
+func (api *API) CreateHandlers() {
 
-	//1. either send response to user
-	//2. or send something to some other user
-	//api.broadcast(userId, []byte(userId+" said "+string(message)))
-}
+	api.Server.OnConnect("/", func(c socketio.Conn) error {
+		c.SetContext("")
+		log.Println("connected:", c.ID())
+		return nil
+	})
 
-func (api *API) handleMessage(connectionId string, message []byte) {
-	var messageType MessageType
-	err := json.Unmarshal(message, &messageType)
-	if err != nil {
-		log.Println(err, message)
-		return
-	}
+	api.Server.OnEvent("/", "notice", func(c socketio.Conn, msg string) {
+		log.Println("notice:", msg)
+		c.Emit("reply", "have "+msg)
+	})
 
-	switch messageType {
-	case CreateUser:
-		api.handleUserCreation(connectionId, message)
-	case UpdateUser:
-		api.handleUserCreation(connectionId, message)
-	default:
-		api.handleDefaultMessage(connectionId)
-	}
-}
+	api.Server.OnEvent("/", CreateUser, func(c socketio.Conn, msg string) {
+		api.handleUserCreation(c, msg)
+	})
 
-func (api *API) broadcast(connectionId string, message []byte) {
-	connections, err := api.connectionRepo.Connections()
-	if err != nil {
-		return
-	}
+	api.Server.OnEvent("/", UpdateUser, func(c socketio.Conn, msg string) {
+		api.handleUserUpdate(c, msg)
+	})
 
-	for _, conn := range connections {
-		if conn.Id() == connectionId {
-			return
+	api.Server.OnEvent("/", CreateRoom, func(c socketio.Conn, msg string) {
+		api.handleUserRoomCreation(c, msg)
+	})
+
+	api.Server.OnEvent("/chat", "msg", func(c socketio.Conn, msg string) string {
+		c.SetContext(msg)
+		return "recv " + msg
+	})
+
+	api.Server.OnEvent("/", "bye", func(c socketio.Conn) string {
+		last := c.Context().(string)
+		c.Emit("bye", last)
+		c.Close()
+		return last
+	})
+
+	go func() {
+		if err := api.Server.Serve(); err != nil {
+			log.Fatalf("socketio listen error: %s\n", err)
 		}
-		if err := conn.Conn().WriteMessage(websocket.TextMessage, message); err != nil {
-			log.Println(err, message)
-			continue
-		}
-	}
-}
+	}()
 
-func (api *API) sendSelf(connectionId string, message []byte) {
-	conn, err := api.connectionRepo.Connection(connectionId)
-	if err != nil {
-		log.Fatal("could not find interface with id: ", connectionId, err)
-		return
-	}
-
-	err = conn.Conn().WriteMessage(websocket.TextMessage, message)
-	if err != nil {
-		log.Println("Message could not be send to self", string(message), err)
-	}
-}
-
-func (api *API) Handle(w http.ResponseWriter, r *http.Request) {
-	conn, err := api.upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	c, err := api.connectionRepo.CreateConnection(conn)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	fmt.Println("new connection!", c.Id())
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	for {
-		_, message, err := conn.ReadMessage()
-		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("error: %v", err)
-			}
-
-			return
-		}
-
-		api.handleMessage(c.Id(), message)
-	}
 }

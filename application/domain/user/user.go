@@ -7,34 +7,34 @@ import (
 
 type User struct {
 	id             string
-	email          string
-	username       string
-	password       string
+	Email          string
+	Username       string
+	Password       string
 	createdOn      time.Time
-	updatedOn      time.Time
-	lastSeenOnline time.Time
-	online         bool
-	friends        []string
-	skillPoints    int
-	reputation     int
-	deleted        bool
+	UpdatedOn      time.Time
+	LastSeenOnline time.Time
+	Online         bool
+	Friends        []string
+	SkillPoints    int
+	Reputation     int
+	Deleted        bool
 }
 
 func New(username string, email string, password string) *User {
 	timestamp := time.Now()
 	return &User{
 		id:             shortuuid.New(),
-		email:          email,
-		username:       username,
-		password:       password,
+		Email:          email,
+		Username:       username,
+		Password:       password,
 		createdOn:      timestamp,
-		updatedOn:      timestamp,
-		lastSeenOnline: timestamp,
-		online:         true,
-		friends:        []string{},
-		skillPoints:    1000, // starting at 1000p so points won't be negative of the first game is a loss
-		reputation:     100,  // 0 to 100 worse to best depending on the player behavior
-		deleted:        false,
+		UpdatedOn:      timestamp,
+		LastSeenOnline: timestamp,
+		Online:         true,
+		Friends:        []string{},
+		SkillPoints:    1000, // starting at 1000p so points won't be negative of the first game is a loss
+		Reputation:     100,  // 0 to 100 worse to best depending on the player behavior
+		Deleted:        false,
 	}
 }
 

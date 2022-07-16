@@ -28,6 +28,8 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 func main() {
 	sessionRepo := sessionrepo.New()
 	userRepo := userrepo.New()
+	// Creates default gin router with Logger and Recovery middleware already attached
+	router := gin.Default()
 
 	app, err := application.New(sessionRepo, userRepo)
 	if err != nil {
@@ -40,21 +42,13 @@ func main() {
 		panic(err)
 	}
 
-	// Creates default gin router with Logger and Recovery middleware already attached
-	router := gin.Default()
+	wsAPI.CreateHandlers()
 
-	// Create API route group
-	api := router.Group("/")
-	{
-		api.GET("/", func(ctx *gin.Context) {
-			serveHome(ctx.Writer, ctx.Request)
-		})
-		// Add /hello GET route to router and define route handler function
-		api.GET("/ws", func(ctx *gin.Context) {
-			//ctx.JSON(200, gin.H{"msg": "world"})
-			wsAPI.Handle(ctx.Writer, ctx.Request)
-		})
-	}
+	router.GET("/socket.io/*any", gin.WrapH(wsAPI.Server))
+	router.POST("/socket.io/*any", gin.WrapH(wsAPI.Server))
+	router.GET("/", func(ctx *gin.Context) {
+		serveHome(ctx.Writer, ctx.Request)
+	})
 
 	router.NoRoute(func(ctx *gin.Context) { ctx.JSON(http.StatusNotFound, gin.H{}) })
 
@@ -65,20 +59,9 @@ func main() {
 		panic(err)
 	}
 
-	//http.HandleFunc("/", serveHome)
-	//http.HandleFunc(
-	//	"/ws", func(w http.ResponseWriter, req *http.Request) {
-	//		wsAPI.Handle(w, req)
-	//	},
-	//)
-	//err = http.ListenAndServe(*addr, nil)
-	//if err != nil {
-	//	log.Fatal("ListenAndServe: ", err)
-	//}
-	//fmt.Println(app)
+	waitForInterrupt := make(chan os.Signal, 1)
+	signal.Notify(waitForInterrupt, os.Interrupt, os.Kill)
 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill)
-
-	<-c
+	<-waitForInterrupt
+	defer wsAPI.Server.Close()
 }
