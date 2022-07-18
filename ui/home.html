@@ -18,14 +18,21 @@
 <form action="">
     <input id="m" autocomplete="off" /><button>Send</button>
     <button onclick="disconnect()">Leave</button>
+
+
 </form>
+<button onclick="createUser()">createUser</button>
 <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
 <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 <script>
-    var socket = io();
+    var socket = io("/");
     var s2 = io("/chat");
 
     socket.on('reply', function(msg){
+        $('#messages').append($('<li>').text(msg));
+    });
+
+    socket.on('userCreated', function(msg){
         $('#messages').append($('<li>').text(msg));
     });
 
@@ -33,12 +40,19 @@
         socket.emit('bye');
     }
 
+    function createUser() {
+        console.log("clicked")
+        socket.emit('createUser', JSON.stringify({"username": "scarlett", "email": "1", "password" : "p" }), function(data){
+            $('#messages').append($('<li>').text('UserCreation: ' + data));
+        });
+    }
+
     $('form').submit(function(){
         s2.emit('msg', $('#m').val(), function(data){
             $('#messages').append($('<li>').text('ACK CALLBACK: ' + data));
         });
 
-        socket.emit('notice', $('#m').val());
+        socket.emit('reply', $('#m').val());
 
         $('#m').val('');
         return false;

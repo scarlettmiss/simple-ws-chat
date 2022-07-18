@@ -55,8 +55,13 @@ type SessionCreationInfo struct {
 }
 
 type UserSessionInfo struct {
-	UserId    string `json:"userId"`
+	UserId    string `json:"user_id"`
 	SessionId string `json:"session_id"`
+}
+
+type UserChatMessage struct {
+	UserId  string `json:"user_id"`
+	Message string `json:"message"`
 }
 
 func (api *API) handleDefaultMessage(c socketio.Conn) {
@@ -68,21 +73,23 @@ func (api *API) errorMessage(c socketio.Conn, errorMessage string) {
 	c.Emit("error", errorMessage)
 }
 
-func (api *API) handleUserCreation(c socketio.Conn, message string) {
+func (api *API) handleUserCreation(c socketio.Conn, message string) string {
 	log.Println("create user:", message)
 
 	var userInfo UserCreationInfo
 	err := json.Unmarshal([]byte(message), &userInfo)
 	if err != nil {
-		api.errorMessage(c, "Could not Create User")
-		return
+		return "Could not Create User"
 	}
 	u, err := api.Application.CreateUser(userInfo.Username, userInfo.Email, userInfo.Password)
 	if err != nil {
-		api.errorMessage(c, "Could not Create User")
-		return
+		return "Could not Create User"
 	}
-	c.Emit("userCreated", u)
+	b, err := json.Marshal(u)
+	if err != nil {
+		return "Could not Create User"
+	}
+	return string(b)
 }
 
 func (api *API) handleUserRoomCreation(c socketio.Conn, message string) {
@@ -144,6 +151,25 @@ func (api *API) handleUserLeavesRoom(c socketio.Conn, message string) {
 	c.Emit("LeftSession", sessionInfo.SessionId)
 }
 
+func (api *API) handleChatMessage(c socketio.Conn, message string) {
+	log.Println("user message session:", message)
+
+	var chatMessageInfo UserChatMessage
+	err := json.Unmarshal([]byte(message), &chatMessageInfo)
+	if err != nil {
+		api.errorMessage(c, "handleChatMessage: Could not send message")
+		return
+	}
+	s, err := api.UserSession(chatMessageInfo.UserId)
+	if err != nil {
+		api.errorMessage(c, "handleChatMessage: Could find user session")
+		return
+	}
+
+	api.Server.BroadcastToRoom("/chat", s.Id(), "reply", chatMessageInfo.Message)
+	c.Emit("Ack", chatMessageInfo.Message)
+}
+
 func (api *API) handleUserMessageRoom(c socketio.Conn, message string) {
 	log.Println("message session:", message)
 
@@ -184,12 +210,12 @@ func (api *API) CreateHandlers() {
 	api.Server.OnConnect("/", func(c socketio.Conn) error {
 		c.SetContext("")
 		log.Println("connected:", c.ID())
-		c.Join("1")
 		return nil
 	})
 
-	api.Server.OnEvent("/", CreateUser, func(c socketio.Conn, msg string) {
-		api.handleUserCreation(c, msg)
+	api.Server.OnEvent("/", CreateUser, func(c socketio.Conn, msg string) string {
+		result := api.handleUserCreation(c, msg)
+		return result
 	})
 
 	api.Server.OnEvent("/", UpdateUser, func(c socketio.Conn, msg string) {
@@ -208,17 +234,10 @@ func (api *API) CreateHandlers() {
 		api.handleUserLeavesRoom(c, msg)
 	})
 
-	//api.Server.OnEvent("/", UserMessage, func(c socketio.Conn, msg string) {
-	//	api.handleUserLeavesRoom(c, msg)
-	//})
-	api.Server.OnEvent("/", "notice", func(c socketio.Conn, msg string) {
-		api.Server.BroadcastToRoom("/", "1", "reply", msg)
-
-	})
-
-	api.Server.OnEvent("/chat", "msg", func(c socketio.Conn, msg string) string {
+	api.Server.OnEvent("/chat", UserMessage, func(c socketio.Conn, msg string) {
 		c.SetContext(msg)
-		return "recv " + msg
+		api.handleChatMessage(c, msg)
+		//return "recv " + msg
 	})
 
 	api.Server.OnEvent("/", "bye", func(c socketio.Conn) string {

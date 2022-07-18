@@ -1,6 +1,8 @@
 package session
 
-import "errors"
+import (
+	"errors"
+)
 
 var (
 	// ErrNotFound is returned when a session is not found
@@ -11,6 +13,7 @@ type Service interface {
 	CreateSession(userId string, capacity int, rating int, constraint Constraint) (*Session, error)
 	JoinSession(id string, userId string) error
 	LeaveSession(id string, userId string) error
+	UserSession(userId string) (*Session, error)
 }
 
 type Repository interface {
@@ -19,4 +22,5 @@ type Repository interface {
 	Sessions() (map[string]*Session, error)
 	UpdateSession(s *Session) error
 	DeleteSession(id string) error
+	UserSession(userId string) (*Session, error)
 }

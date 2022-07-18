@@ -1,6 +1,7 @@
 package application
 
 import (
+	"github.com/scarlettmiss/engine-w/application/domain/session"
 	"github.com/scarlettmiss/engine-w/application/domain/user"
 	sessionservice "github.com/scarlettmiss/engine-w/application/services/sessions"
 	userservice "github.com/scarlettmiss/engine-w/application/services/user"
@@ -8,7 +9,7 @@ import (
 
 type Application struct {
 	sessionService session.Service
-	UserService    user.Service
+	userService    user.Service
 }
 
 func New(sessions session.Repository, users user.Repository) (*Application, error) {
@@ -24,7 +25,7 @@ func New(sessions session.Repository, users user.Repository) (*Application, erro
 
 	app := Application{
 		sessionService: ss,
-		UserService:    us,
+		userService:    us,
 	}
 
 	return &app, nil
@@ -42,14 +43,18 @@ func (app *Application) LeaveSession(id, userId string) error {
 	return app.sessionService.LeaveSession(id, userId)
 }
 
+func (app *Application) UserSession(userId string) (*session.Session, error) {
+	return app.sessionService.UserSession(userId)
+}
+
 func (app *Application) CreateUser(username string, email string, password string) (*user.User, error) {
-	return app.UserService.CreateUser(username, email, password)
+	return app.userService.CreateUser(username, email, password)
 }
 
 func (app *Application) UpdateUser(userId string, username *string, email *string, password *string) (*user.User, error) {
-	return app.UserService.UpdateUser(userId, username, email, password)
+	return app.userService.UpdateUser(userId, username, email, password)
 }
 
 func (app *Application) DeleteUser(id string) error {
-	return app.UserService.DeleteUser(id)
+	return app.userService.DeleteUser(id)
 }

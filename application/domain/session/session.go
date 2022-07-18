@@ -38,6 +38,10 @@ func (s *Session) Users() map[string]*user.User {
 	return s.users
 }
 
+func (s *Session) Capacity() int {
+	return s.capacity
+}
+
 func (s *Session) Id() string {
 	return s.id
 }

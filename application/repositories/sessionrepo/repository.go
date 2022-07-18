@@ -46,6 +46,17 @@ func (r *Repository) Sessions() (map[string]*session.Session, error) {
 	return r.sessions, nil
 }
 
+func (r *Repository) UserSession(userId string) (*session.Session, error) {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+	for _, s := range r.sessions {
+		if s.Users()[userId] != nil {
+			return s, nil
+		}
+	}
+	return nil, session.ErrNotFound
+}
+
 func (r *Repository) UpdateSession(s *session.Session) error {
 	r.mux.Lock()
 	defer r.mux.Unlock()

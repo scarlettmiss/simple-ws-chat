@@ -40,10 +40,17 @@ func (s *Service) CreateSession(userId string, capacity int, rating int, constra
 	return sess, nil
 }
 
-func (s *Service) JoinSession(id, userId string) error {
+func (s *Service) UserSession(userId string) (*session.Session, error) {
+	return s.sessions.UserSession(userId)
+}
+
+func (s *Service) JoinSession(id string, userId string) error {
 	sess, err := s.sessions.Session(id)
 	if err != nil {
 		return err
+	}
+	if len(sess.Users()) == sess.Capacity() {
+		return errors.New("session is full")
 	}
 	u, err := s.users.User(userId)
 	if err != nil {
@@ -52,7 +59,7 @@ func (s *Service) JoinSession(id, userId string) error {
 	return sess.AddUser(u)
 }
 
-func (s *Service) LeaveSession(id, userId string) error {
+func (s *Service) LeaveSession(id string, userId string) error {
 	sess, err := s.sessions.Session(id)
 	if err != nil {
 		return err
