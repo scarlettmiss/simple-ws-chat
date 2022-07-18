@@ -29,8 +29,7 @@
         $('#messages').append($('<li>').text(msg));
     });
 
-    function disconnect(
-    ){
+    function disconnect() {
         socket.emit('bye');
     }
 

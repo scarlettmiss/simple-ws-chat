@@ -1,7 +1,6 @@
 package application
 
 import (
-	"github.com/scarlettmiss/engine-w/application/domain/session"
 	"github.com/scarlettmiss/engine-w/application/domain/user"
 	sessionservice "github.com/scarlettmiss/engine-w/application/services/sessions"
 	userservice "github.com/scarlettmiss/engine-w/application/services/user"
@@ -35,7 +34,7 @@ func (app *Application) CreateSession(userId string, capacity int, rating int, c
 	return app.sessionService.CreateSession(userId, capacity, rating, constraint)
 }
 
-func (app *Application) JoinSession(id, userId string) error {
+func (app *Application) JoinSession(id string, userId string) error {
 	return app.sessionService.JoinSession(id, userId)
 }
 

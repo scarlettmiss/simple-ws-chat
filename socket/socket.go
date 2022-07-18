@@ -19,6 +19,8 @@ const (
 	UpdateUser             string = "updateUser"
 	CreateRoom             string = "createRoom"
 	UserJoinRoom           string = "userJoinRoom"
+	UserLeaveRoom          string = "userLeaveRoom"
+	UserMessage            string = "userMessage"
 	UserAddFriend          string = "userAddFriend"
 	UserRequestMatchMaking string = "userRequestMatchMaking"
 )
@@ -45,11 +47,16 @@ type UserUpdateInfo struct {
 	Password *string `json:"password"`
 }
 
-type SessionInfo struct {
-	UserId     string             `json:"userId"`
+type SessionCreationInfo struct {
+	UserId     string             `json:"user_id"`
 	Capacity   int                `json:"capacity"`
 	Rating     int                `json:"rating"`
 	Constraint session.Constraint `json:"constraint"`
+}
+
+type UserSessionInfo struct {
+	UserId    string `json:"userId"`
+	SessionId string `json:"session_id"`
 }
 
 func (api *API) handleDefaultMessage(c socketio.Conn) {
@@ -81,20 +88,79 @@ func (api *API) handleUserCreation(c socketio.Conn, message string) {
 func (api *API) handleUserRoomCreation(c socketio.Conn, message string) {
 	log.Println("create session:", message)
 
-	var sessionInfo SessionInfo
+	var sessionInfo SessionCreationInfo
 	err := json.Unmarshal([]byte(message), &sessionInfo)
 	if err != nil {
-		api.errorMessage(c, "Could not Create room")
+		api.errorMessage(c, "Could not Create session")
 		return
 	}
 	s, err := api.CreateSession(sessionInfo.UserId, sessionInfo.Capacity, sessionInfo.Rating, sessionInfo.Constraint)
 	if err != nil {
-		api.errorMessage(c, "Could not Create room")
+		api.errorMessage(c, "Could not Create session")
 		return
 	}
+	c.Emit("CreatedSession", s.Id())
 	c.Join(s.Id())
-	log.Println("joined session:", s.Id())
-	c.Emit("jointRoom", s.Id())
+	c.Emit("joinedSession", s.Id())
+
+	log.Println("Created and joined session:", s.Id())
+}
+
+func (api *API) handleUserJoinedRoom(c socketio.Conn, message string) {
+	log.Println("join session:", message)
+
+	var sessionInfo UserSessionInfo
+	err := json.Unmarshal([]byte(message), &sessionInfo)
+	if err != nil {
+		api.errorMessage(c, "Could not Join session")
+		return
+	}
+	err = api.JoinSession(sessionInfo.SessionId, sessionInfo.UserId)
+	if err != nil {
+		api.errorMessage(c, "Could not Join session")
+		return
+	}
+	c.Join(sessionInfo.SessionId)
+	log.Println("joined session:", sessionInfo.SessionId)
+	c.Emit("joinedSession", sessionInfo.SessionId)
+}
+
+func (api *API) handleUserLeavesRoom(c socketio.Conn, message string) {
+	log.Println("leave session:", message)
+
+	var sessionInfo UserSessionInfo
+	err := json.Unmarshal([]byte(message), &sessionInfo)
+	if err != nil {
+		api.errorMessage(c, "Could not leave session")
+		return
+	}
+	err = api.LeaveSession(sessionInfo.SessionId, sessionInfo.UserId)
+	if err != nil {
+		api.errorMessage(c, "Could not leave session")
+		return
+	}
+	c.Leave(sessionInfo.SessionId)
+	log.Println("left session:", sessionInfo.SessionId)
+	c.Emit("LeftSession", sessionInfo.SessionId)
+}
+
+func (api *API) handleUserMessageRoom(c socketio.Conn, message string) {
+	log.Println("message session:", message)
+
+	var sessionInfo UserSessionInfo
+	err := json.Unmarshal([]byte(message), &sessionInfo)
+	if err != nil {
+		api.errorMessage(c, "Could not leave session")
+		return
+	}
+	err = api.LeaveSession(sessionInfo.SessionId, sessionInfo.UserId)
+	if err != nil {
+		api.errorMessage(c, "Could not leave session")
+		return
+	}
+	c.Leave(sessionInfo.SessionId)
+	log.Println("left session:", sessionInfo.SessionId)
+	c.Emit("LeftSession", sessionInfo.SessionId)
 }
 
 func (api *API) handleUserUpdate(c socketio.Conn, message string) {
@@ -118,12 +184,8 @@ func (api *API) CreateHandlers() {
 	api.Server.OnConnect("/", func(c socketio.Conn) error {
 		c.SetContext("")
 		log.Println("connected:", c.ID())
+		c.Join("1")
 		return nil
-	})
-
-	api.Server.OnEvent("/", "notice", func(c socketio.Conn, msg string) {
-		log.Println("notice:", msg)
-		c.Emit("reply", "have "+msg)
 	})
 
 	api.Server.OnEvent("/", CreateUser, func(c socketio.Conn, msg string) {
@@ -136,6 +198,22 @@ func (api *API) CreateHandlers() {
 
 	api.Server.OnEvent("/", CreateRoom, func(c socketio.Conn, msg string) {
 		api.handleUserRoomCreation(c, msg)
+	})
+
+	api.Server.OnEvent("/", UserJoinRoom, func(c socketio.Conn, msg string) {
+		api.handleUserJoinedRoom(c, msg)
+	})
+
+	api.Server.OnEvent("/", UserLeaveRoom, func(c socketio.Conn, msg string) {
+		api.handleUserLeavesRoom(c, msg)
+	})
+
+	//api.Server.OnEvent("/", UserMessage, func(c socketio.Conn, msg string) {
+	//	api.handleUserLeavesRoom(c, msg)
+	//})
+	api.Server.OnEvent("/", "notice", func(c socketio.Conn, msg string) {
+		api.Server.BroadcastToRoom("/", "1", "reply", msg)
+
 	})
 
 	api.Server.OnEvent("/chat", "msg", func(c socketio.Conn, msg string) string {

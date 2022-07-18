@@ -16,11 +16,11 @@ func New() *Repository {
 	}
 }
 
-func (r *Repository) CreateSession(capacity int, rating int, constraint session.Constraint) (*session.Session, error) {
+func (r *Repository) CreateSession(userId string, capacity int, rating int, constraint session.Constraint) (*session.Session, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	sess := session.New(capacity, rating, constraint)
+	sess := session.New(userId, capacity, rating, constraint)
 
 	r.sessions[sess.Id()] = sess
 

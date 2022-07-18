@@ -20,15 +20,17 @@ type Session struct {
 	capacity   int
 	minRating  int
 	constraint Constraint
+	owner      string
 }
 
-func New(capacity int, minRating int, constraint Constraint) *Session {
+func New(userId string, capacity int, minRating int, constraint Constraint) *Session {
 	return &Session{
 		id:         shortuuid.New(),
 		users:      map[string]*user.User{},
 		capacity:   capacity,
 		minRating:  minRating,
 		constraint: constraint,
+		owner:      userId,
 	}
 }
 
