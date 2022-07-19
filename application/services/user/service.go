@@ -19,11 +19,11 @@ func New(users user.Repository) (*Service, error) {
 	}, nil
 }
 
-func (s *Service) CreateUser(username string, email string, password string) (*user.User, error) {
-	return s.users.CreateUser(username, email, password)
+func (s *Service) CreateUser(username string, password string) (*user.User, error) {
+	return s.users.CreateUser(username, password)
 }
 
-func (s *Service) UpdateUser(userId string, username *string, email *string, password *string) (*user.User, error) {
+func (s *Service) UpdateUser(userId string, username *string, password *string) (*user.User, error) {
 	u, err := s.users.User(userId)
 	if err != nil {
 		return nil, err
@@ -31,9 +31,6 @@ func (s *Service) UpdateUser(userId string, username *string, email *string, pas
 
 	if username != nil {
 		u.Username = *username
-	}
-	if email != nil {
-		u.Email = *email
 	}
 	if password != nil {
 		u.Password = *password
@@ -49,4 +46,8 @@ func (s *Service) UpdateUser(userId string, username *string, email *string, pas
 
 func (s *Service) DeleteUser(id string) error {
 	return s.users.DeleteUser(id)
+}
+
+func (s *Service) Authenticate(username string, password string) error {
+	return s.users.CheckPassword(username, password)
 }

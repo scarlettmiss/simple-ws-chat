@@ -16,6 +16,7 @@ type API struct {
 
 const (
 	CreateUser             string = "createUser"
+	UserAuthentication     string = "userAuthentication"
 	UpdateUser             string = "updateUser"
 	CreateRoom             string = "createRoom"
 	UserJoinRoom           string = "userJoinRoom"
@@ -36,14 +37,17 @@ func New(application *application.Application) (*API, error) {
 
 type UserCreationInfo struct {
 	Username string `json:"username"`
-	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type UserAuthenticationInfo struct {
+	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
 type UserUpdateInfo struct {
 	UserId   string  `json:"user_id"`
 	Username *string `json:"username"`
-	Email    *string `json:"email"`
 	Password *string `json:"password"`
 }
 
@@ -73,23 +77,38 @@ func (api *API) errorMessage(c socketio.Conn, errorMessage string) {
 	c.Emit("error", errorMessage)
 }
 
-func (api *API) handleUserCreation(c socketio.Conn, message string) string {
+func (api *API) handleUserCreation(message string) string {
 	log.Println("create user:", message)
 
 	var userInfo UserCreationInfo
 	err := json.Unmarshal([]byte(message), &userInfo)
 	if err != nil {
-		return "Could not Create User"
+		return err.Error()
 	}
-	u, err := api.Application.CreateUser(userInfo.Username, userInfo.Email, userInfo.Password)
+	u, err := api.Application.CreateUser(userInfo.Username, userInfo.Password)
 	if err != nil {
-		return "Could not Create User"
+		return err.Error()
 	}
 	b, err := json.Marshal(u)
 	if err != nil {
-		return "Could not Create User"
+		return err.Error()
 	}
 	return string(b)
+}
+
+func (api *API) handleUserAuthentication(message string) string {
+	log.Println("Authenticate user:", message)
+
+	var userInfo UserAuthenticationInfo
+	err := json.Unmarshal([]byte(message), &userInfo)
+	if err != nil {
+		return err.Error()
+	}
+	err = api.Application.Authenticate(userInfo.Username, userInfo.Password)
+	if err != nil {
+		return err.Error()
+	}
+	return "logged in"
 }
 
 func (api *API) handleUserRoomCreation(c socketio.Conn, message string) {
@@ -162,7 +181,7 @@ func (api *API) handleChatMessage(c socketio.Conn, message string) {
 	}
 	s, err := api.UserSession(chatMessageInfo.UserId)
 	if err != nil {
-		api.errorMessage(c, "handleChatMessage: Could find user session")
+		api.errorMessage(c, err.Error())
 		return
 	}
 
@@ -196,7 +215,7 @@ func (api *API) handleUserUpdate(c socketio.Conn, message string) {
 		api.errorMessage(c, "Could not update User")
 		return
 	}
-	u, err := api.Application.UpdateUser(userInfo.UserId, userInfo.Username, userInfo.Email, userInfo.Password)
+	u, err := api.Application.UpdateUser(userInfo.UserId, userInfo.Username, userInfo.Password)
 	if err != nil {
 		api.errorMessage(c, "Could not update User")
 		return
@@ -206,7 +225,6 @@ func (api *API) handleUserUpdate(c socketio.Conn, message string) {
 }
 
 func (api *API) CreateHandlers() {
-
 	api.Server.OnConnect("/", func(c socketio.Conn) error {
 		c.SetContext("")
 		log.Println("connected:", c.ID())
@@ -214,7 +232,12 @@ func (api *API) CreateHandlers() {
 	})
 
 	api.Server.OnEvent("/", CreateUser, func(c socketio.Conn, msg string) string {
-		result := api.handleUserCreation(c, msg)
+		result := api.handleUserCreation(msg)
+		return result
+	})
+
+	api.Server.OnEvent("/", UserAuthentication, func(c socketio.Conn, msg string) string {
+		result := api.handleUserAuthentication(msg)
 		return result
 	})
 

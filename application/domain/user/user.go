@@ -7,7 +7,6 @@ import (
 
 type User struct {
 	id             string
-	Email          string
 	Username       string
 	Password       string
 	createdOn      time.Time
@@ -20,11 +19,10 @@ type User struct {
 	Deleted        bool
 }
 
-func New(username string, email string, password string) *User {
+func New(username string, password string) *User {
 	timestamp := time.Now()
 	return &User{
 		id:             shortuuid.New(),
-		Email:          email,
 		Username:       username,
 		Password:       password,
 		createdOn:      timestamp,

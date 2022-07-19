@@ -1,6 +1,7 @@
 package userrepo
 
 import (
+	"errors"
 	"github.com/scarlettmiss/engine-w/application/domain/user"
 	"sync"
 	"time"
@@ -17,14 +18,20 @@ func New() *Repository {
 	}
 }
 
-func (r *Repository) CreateUser(username string, email string, password string) (*user.User, error) {
+func (r *Repository) CreateUser(username string, password string) (*user.User, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	u := user.New(username, email, password)
+	u, err := r.userByUsername(username)
+	if err == nil {
+		return nil, user.ErrUserExists
+	} else if !errors.Is(err, user.ErrNotFound) {
+		return nil, err
+	}
+
+	u = user.New(username, password)
 
 	r.users[u.Id()] = u
-
 	return u, nil
 }
 
@@ -38,6 +45,22 @@ func (r *Repository) User(id string) (*user.User, error) {
 	}
 
 	return u, nil
+}
+
+func (r *Repository) userByUsername(username string) (*user.User, error) {
+	for _, u := range r.users {
+		if u.Username == username {
+			return u, nil
+		}
+	}
+	return nil, user.ErrNotFound
+}
+
+func (r *Repository) UserByUsername(username string) (*user.User, error) {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+
+	return r.userByUsername(username)
 }
 
 func (r *Repository) Users() (map[string]*user.User, error) {
@@ -76,4 +99,20 @@ func (r *Repository) DeleteUser(id string) error {
 
 	return nil
 
+}
+
+func (r *Repository) CheckPassword(username string, password string) error {
+	r.mux.Lock()
+	defer r.mux.Unlock()
+
+	u, err := r.userByUsername(username)
+	if err != nil {
+		return user.ErrAuthentication
+	}
+
+	if u.Password == password {
+		return nil
+	}
+
+	return user.ErrAuthentication
 }

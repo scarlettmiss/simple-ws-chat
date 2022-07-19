@@ -47,12 +47,16 @@ func (app *Application) UserSession(userId string) (*session.Session, error) {
 	return app.sessionService.UserSession(userId)
 }
 
-func (app *Application) CreateUser(username string, email string, password string) (*user.User, error) {
-	return app.userService.CreateUser(username, email, password)
+func (app *Application) CreateUser(username string, password string) (*user.User, error) {
+	return app.userService.CreateUser(username, password)
 }
 
-func (app *Application) UpdateUser(userId string, username *string, email *string, password *string) (*user.User, error) {
-	return app.userService.UpdateUser(userId, username, email, password)
+func (app *Application) Authenticate(username string, password string) error {
+	return app.userService.Authenticate(username, password)
+}
+
+func (app *Application) UpdateUser(userId string, username *string, password *string) (*user.User, error) {
+	return app.userService.UpdateUser(userId, username, password)
 }
 
 func (app *Application) DeleteUser(id string) error {
