@@ -26,8 +26,12 @@ func New(sessions session.Repository, users user.Repository) (*Service, error) {
 	}, nil
 }
 
-func (s *Service) CreateSession(userId string, capacity int, rating int, constraint session.Constraint) (*session.Session, error) {
-	sess, err := s.sessions.CreateSession(userId, capacity, rating, constraint)
+func (s *Service) CreateSession(userId string, capacity int, rating int, constraint string) (*session.Session, error) {
+	constr, err := session.ParseConstraint(constraint)
+	if err != nil {
+		return nil, err
+	}
+	sess, err := s.sessions.CreateSession(userId, capacity, rating, constr)
 	if err != nil {
 		return nil, err
 	}

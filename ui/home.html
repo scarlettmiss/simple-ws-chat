@@ -5,9 +5,9 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font: 13px Helvetica, Arial; }
-        form { flex: 1; background: #000; padding: 3px; width: 100%; }
+        form { flex: 1; background: #000; padding: 3px; width: 100%; padding-top: 16px}
         form input { padding: 10px; width: 90%; margin-right: .5%; border: 1px black solid }
-        form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
+        form button { background: rgb(130, 224, 255); border: none; padding: 10px; }
         #messages { list-style-type: none; margin: 0; padding: 0; }
         #messages li { padding: 5px 10px; }
         #messages li:nth-child(odd) { background: #eee; }
@@ -15,13 +15,8 @@
 </head>
 <body>
 <ul id="messages"></ul>
-<form action="">
-    <label for="m" style="color: white">Message</label>
-    <input id="m" autocomplete="off" />
-    <button>Send</button>
-</form>
 
-<form action="">
+<div>
     <div>
         <label for="username" style="color: white">username</label>
         <input id="username" autocomplete="off" />
@@ -30,56 +25,159 @@
         <label for="password" style="color: white">password</label>
         <input type="password" id="password" autocomplete="off" />
     </div>
-    <button onclick="createUser()">createUser</button>
+    <button onclick="createUser()">create User</button>
     <button onclick="logUser()">logIn</button>
-</form>
+</div>
+
+<div>
+    <div>
+        <label for="skill" style="color: white">skill</label>
+        <input id="skill" type="range" min="1000" max="2000" step="100" value="50">
+    </div>
+    <div>
+        <label for="capacity" style="color: white">capacity</label>
+        <input id="capacity" type="range" min="2" max="8" step="1" value="4">
+    </div>
+
+    <div>
+        <label for="visibility" style="color: white">visibility</label>
+        <select id="visibility" name="Constraints">
+            <option value="none" selected>Public</option>
+            <option value="friendsOnly">Friends</option>
+            <option value="invitationOnly">Invitation</option>
+        </select>
+    </div>
+    <button onclick="createRoom()">create Room</button>
+    <button onclick="leaveRoom()">Leave Room</button>
+</div>
+
+<div>
+    <div>
+        <label for="roomId" style="color: white">Room Id</label>
+        <input id="roomId">
+    </div>
+    <button onclick="joinRoom()">Join room</button>
+</div>
+
+<div>
+    <label for="message" style="color: white">Message</label>
+    <input id="message"/>
+    <button onclick="sendChatMessage()">Send</button>
+</div>
 
 <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
 <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 <script>
-    var socket = io("/");
+    var socket = io("");
     var s2 = io("/chat");
-
-    socket.on('reply', function(msg){
-        $('#messages').append($('<li>').text(msg));
-    });
-
-    socket.on('userCreated', function(msg){
-        $('#messages').append($('<li>').text(msg));
-    });
 
     function disconnect() {
         socket.emit('bye');
     }
 
+    s2.on('chatMessage', function(msg){
+        $('#messages').append($('<li>').text(msg));
+    });
+
+    var user
+    var room
     function createUser() {
         console.log("clicked")
         const username = $('#username').val();
         const password = $('#password').val();
         socket.emit('createUser', JSON.stringify({"username": username, "password" : password}), function(data) {
-            $('#messages').append($('<li>').text('userCreated: ' + data));
+            const parced = JSON.parse(data)
+            if (parced) {
+                user = parced
+                $('#messages').append($('<li>').text('userCreated: ' + data));
+            } else {
+                console.error(data)
+            }
         });
     }
     function logUser() {
         console.log("clicked 2")
         const username = $('#username').val();
         const password = $('#password').val();
-        socket.emit('userAuthentication', JSON.stringify({"username": username, "password" : password}), function(data) {
-            $('#messages').append($('<li>').text('userAuthentication: ' + data));
+        const m =  {"username": username, "password" : password}
+        socket.emit('userAuthentication', JSON.stringify(m), function(data) {
+            const parced = JSON.parse(data)
+            if (parced) {
+                user = parced
+                $('#messages').append($('<li>').text('userCreated: ' + data));
+            } else {
+                console.error(data)
+            }
         });
     }
 
-    $('form').submit(function(){
-        const m = $('#m')
-        s2.emit('msg', m.val(), function(data){
-            $('#messages').append($('<li>').text('ACK CALLBACK: ' + data));
+    function createRoom() {
+        console.log("create room")
+        const skill = $('#skill').val();
+        const capacity = $('#capacity').val();
+        const visibility = $('#visibility').val();
+        const m = {"user_id": user.Id,
+            "capacity": Number(capacity),
+            "rating": Number(skill),
+            "constraint": visibility}
+        socket.emit('createRoom', JSON.stringify(m), function(data) {
+            const parced = JSON.parse(data)
+            if (parced) {
+                room = parced
+                $('#messages').append($('<li>').text('room created: ' + data));
+            } else {
+                console.error(data)
+            }
         });
+    }
 
-        socket.emit('reply', m.val());
+    function leaveRoom() {
+        console.log("Leave room")
+        const m = {"user_id": user.Id,
+            "session_id": room.Id}
+        socket.emit('userLeaveRoom', JSON.stringify(m), function(data) {
+            const parced = JSON.parse(data)
+            if (parced) {
+                room = undefined
+                $('#messages').append($('<li>').text('room Left: ' + data));
+            } else {
+                console.error(data)
+            }
+        });
+    }
 
-       m.val('');
-        return false;
-    });
+    function joinRoom() {
+        console.log("Join room")
+        const roomId = $('#roomId').val();
+        const m = {"user_id": user.Id,
+            "session_id": roomId}
+        socket.emit('userJoinRoom', JSON.stringify(m), function(data) {
+            const parced = JSON.parse(data)
+            if (parced) {
+                room = parced
+                $('#messages').append($('<li>').text('room Joined: ' + data));
+            } else {
+                console.error(data)
+            }
+        });
+    }
+
+    function sendChatMessage() {
+        console.log("send to room")
+        const mess = $('#message').val();
+        const m = {"user_id": user.Id,
+            "session_id": room.Id,
+            "message": mess
+        }
+        s2.emit('userMessage', JSON.stringify(m), function(data) {
+            const parced = JSON.parse(data)
+            if (parced) {
+                $('#messages').append($('<li>').text(data));
+            } else {
+                console.error(data)
+            }
+        });
+    }
 </script>
 </body>
 </html>

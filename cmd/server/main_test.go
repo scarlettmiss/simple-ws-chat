@@ -16,14 +16,14 @@ func TestSessionJoin(t *testing.T) {
 	app, err := application.New(sessionRepo, userRepo)
 	assert.Nil(t, err)
 
-	u, err := app.CreateUser("scarlettmiss", "mariapapanagiwtou@gmail.com", "1234")
+	u, err := app.CreateUser("scarlettmiss", "1234")
 	assert.Nil(t, err)
 
-	s, err := app.CreateSession(u.Id(), 4, 1000, session.ConstraintNone)
+	s, err := app.CreateSession(u.Id, 4, 1000, "none")
 	assert.Nil(t, err)
 	assert.Len(t, s.Users(), 1)
 
-	err = app.LeaveSession(s.Id(), u.Id())
+	err = app.LeaveSession(s.Id(), u.Id)
 	assert.Nil(t, err)
 
 	_, err = sessionRepo.Session(s.Id())

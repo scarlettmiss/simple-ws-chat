@@ -33,7 +33,7 @@ func (s *Service) UpdateUser(userId string, username *string, password *string) 
 		u.Username = *username
 	}
 	if password != nil {
-		u.Password = *password
+		u.SetPassword(*password)
 	}
 
 	err = s.users.UpdateUser(u)
@@ -48,6 +48,6 @@ func (s *Service) DeleteUser(id string) error {
 	return s.users.DeleteUser(id)
 }
 
-func (s *Service) Authenticate(username string, password string) error {
+func (s *Service) Authenticate(username string, password string) (*user.User, error) {
 	return s.users.CheckPassword(username, password)
 }

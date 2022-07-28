@@ -11,7 +11,7 @@ var (
 
 type Service interface {
 	CreateUser(username string, password string) (*User, error)
-	Authenticate(username string, password string) error
+	Authenticate(username string, password string) (*User, error)
 	UpdateUser(userId string, username *string, password *string) (*User, error)
 	DeleteUser(id string) error
 }
@@ -23,5 +23,5 @@ type Repository interface {
 	Users() (map[string]*User, error)
 	UpdateUser(u *User) error
 	DeleteUser(id string) error
-	CheckPassword(username string, password string) error
+	CheckPassword(username string, password string) (*User, error)
 }

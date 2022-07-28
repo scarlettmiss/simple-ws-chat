@@ -6,10 +6,10 @@ import (
 )
 
 type User struct {
-	id             string
+	Id             string
 	Username       string
-	Password       string
-	createdOn      time.Time
+	password       string
+	CreatedOn      time.Time
 	UpdatedOn      time.Time
 	LastSeenOnline time.Time
 	Online         bool
@@ -22,10 +22,10 @@ type User struct {
 func New(username string, password string) *User {
 	timestamp := time.Now()
 	return &User{
-		id:             shortuuid.New(),
+		Id:             shortuuid.New(),
 		Username:       username,
-		Password:       password,
-		createdOn:      timestamp,
+		password:       password,
+		CreatedOn:      timestamp,
 		UpdatedOn:      timestamp,
 		LastSeenOnline: timestamp,
 		Online:         true,
@@ -36,10 +36,14 @@ func New(username string, password string) *User {
 	}
 }
 
-func (u *User) Id() string {
-	return u.id
+func (u *User) Password() string {
+	return u.password
+}
+
+func (u *User) SetPassword(password string) {
+	u.password = password
 }
 
 func (u *User) update() string {
-	return u.id
+	return u.Id
 }

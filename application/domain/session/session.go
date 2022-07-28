@@ -14,6 +14,20 @@ const (
 	ConstraintInvitationOnly Constraint = "invitationOnly"
 )
 
+func ParseConstraint(s string) (Constraint, error) {
+	switch Constraint(s) {
+	case ConstraintNone:
+		return ConstraintNone, nil
+	case ConstraintFriendsOnly:
+		return ConstraintFriendsOnly, nil
+	case ConstraintInvitationOnly:
+		return ConstraintInvitationOnly, nil
+	default:
+		return ConstraintNone, errors.New("invalid constraint")
+
+	}
+}
+
 type Session struct {
 	id         string
 	users      map[string]*user.User
@@ -47,12 +61,12 @@ func (s *Session) Id() string {
 }
 
 func (s *Session) AddUser(u *user.User) error {
-	_, exists := s.users[u.Id()]
+	_, exists := s.users[u.Id]
 	if exists {
 		return errors.New("user already exists")
 	}
 
-	s.users[u.Id()] = u
+	s.users[u.Id] = u
 
 	return nil
 }

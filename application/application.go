@@ -31,7 +31,7 @@ func New(sessions session.Repository, users user.Repository) (*Application, erro
 	return &app, nil
 }
 
-func (app *Application) CreateSession(userId string, capacity int, rating int, constraint session.Constraint) (*session.Session, error) {
+func (app *Application) CreateSession(userId string, capacity int, rating int, constraint string) (*session.Session, error) {
 	return app.sessionService.CreateSession(userId, capacity, rating, constraint)
 }
 
@@ -51,7 +51,7 @@ func (app *Application) CreateUser(username string, password string) (*user.User
 	return app.userService.CreateUser(username, password)
 }
 
-func (app *Application) Authenticate(username string, password string) error {
+func (app *Application) Authenticate(username string, password string) (*user.User, error) {
 	return app.userService.Authenticate(username, password)
 }
 

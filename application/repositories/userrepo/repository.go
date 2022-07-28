@@ -31,7 +31,7 @@ func (r *Repository) CreateUser(username string, password string) (*user.User, e
 
 	u = user.New(username, password)
 
-	r.users[u.Id()] = u
+	r.users[u.Id] = u
 	return u, nil
 }
 
@@ -76,11 +76,11 @@ func (r *Repository) UpdateUser(u *user.User) error {
 
 	u.UpdatedOn = time.Now()
 
-	_, ok := r.users[u.Id()]
+	_, ok := r.users[u.Id]
 	if !ok {
 		return user.ErrNotFound
 	}
-	r.users[u.Id()] = u
+	r.users[u.Id] = u
 
 	return nil
 
@@ -101,18 +101,18 @@ func (r *Repository) DeleteUser(id string) error {
 
 }
 
-func (r *Repository) CheckPassword(username string, password string) error {
+func (r *Repository) CheckPassword(username string, password string) (*user.User, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
 	u, err := r.userByUsername(username)
 	if err != nil {
-		return user.ErrAuthentication
+		return nil, user.ErrAuthentication
 	}
 
-	if u.Password == password {
-		return nil
+	if u.Password() == password {
+		return u, nil
 	}
 
-	return user.ErrAuthentication
+	return nil, user.ErrAuthentication
 }

@@ -10,7 +10,7 @@ var (
 )
 
 type Service interface {
-	CreateSession(userId string, capacity int, rating int, constraint Constraint) (*Session, error)
+	CreateSession(userId string, capacity int, rating int, constraint string) (*Session, error)
 	JoinSession(id string, userId string) error
 	LeaveSession(id string, userId string) error
 	UserSession(userId string) (*Session, error)
