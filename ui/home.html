@@ -69,16 +69,34 @@
 <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 <script>
     var socket = io("");
-    var s2 = io("/chat");
 
     function disconnect() {
         socket.emit('bye');
     }
 
-    s2.on('chatMessage', function(msg){
-        $('#messages').append($('<li>').text(msg));
+    socket.on('chatMessage', function(msg) {
+        console.log(msg)
+        const message = JSON.parse(msg)
+        if (message) {
+            $('#messages').append($('<li>').text(`${message.username} said: ${message.message}`));
+        }
     });
 
+    socket.on('userJoinedRoom', function(msg) {
+        console.log(msg)
+        const message = JSON.parse(msg)
+        if (message) {
+            $('#messages').append($('<li>').text(`user ${message.username} joined`));
+        }
+    });
+
+    socket.on('userLeftRoom', function(msg) {
+        console.log(msg)
+        const message = JSON.parse(msg)
+        if (message) {
+            $('#messages').append($('<li>').text(`user ${message.username} left`));
+        }
+    });
     var user
     var room
     function createUser() {
@@ -116,7 +134,7 @@
         const skill = $('#skill').val();
         const capacity = $('#capacity').val();
         const visibility = $('#visibility').val();
-        const m = {"user_id": user.Id,
+        const m = {"user_id": user.id,
             "capacity": Number(capacity),
             "rating": Number(skill),
             "constraint": visibility}
@@ -133,8 +151,8 @@
 
     function leaveRoom() {
         console.log("Leave room")
-        const m = {"user_id": user.Id,
-            "session_id": room.Id}
+        const m = {"user_id": user.id,
+            "session_id": room.id}
         socket.emit('userLeaveRoom', JSON.stringify(m), function(data) {
             const parced = JSON.parse(data)
             if (parced) {
@@ -149,7 +167,7 @@
     function joinRoom() {
         console.log("Join room")
         const roomId = $('#roomId').val();
-        const m = {"user_id": user.Id,
+        const m = {"user_id": user.id,
             "session_id": roomId}
         socket.emit('userJoinRoom', JSON.stringify(m), function(data) {
             const parced = JSON.parse(data)
@@ -165,11 +183,11 @@
     function sendChatMessage() {
         console.log("send to room")
         const mess = $('#message').val();
-        const m = {"user_id": user.Id,
-            "session_id": room.Id,
+        const m = {"user_id": user.id,
+            "session_id": room.id,
             "message": mess
         }
-        s2.emit('userMessage', JSON.stringify(m), function(data) {
+        socket.emit('userMessage', JSON.stringify(m), function(data) {
             const parced = JSON.parse(data)
             if (parced) {
                 $('#messages').append($('<li>').text(data));

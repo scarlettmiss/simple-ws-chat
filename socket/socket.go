@@ -18,9 +18,11 @@ const (
 	UpdateUser             string = "updateUser"
 	CreateRoom             string = "createRoom"
 	UserJoinRoom           string = "userJoinRoom"
+	UserJoinedRoom         string = "userJoinedRoom"
 	UserLeaveRoom          string = "userLeaveRoom"
+	UserLeftRoom           string = "userLeftRoom"
 	UserMessage            string = "userMessage"
-	UserAddFriend          string = "userAddFriend"
+	ChatMessage            string = "chatMessage"
 	UserRequestMatchMaking string = "userRequestMatchMaking"
 )
 
@@ -34,28 +36,37 @@ func New(application *application.Application) (*API, error) {
 }
 
 type ErrorMessage struct {
-	Error string
+	Error string `json:"error"`
 }
 
 type UserInfoResponse struct {
-	Id string
+	Id       string `json:"id"`
+	Username string `json:"username"`
 }
 
 type UserCreateSessionResponse struct {
-	Id string
+	Id string `json:"id"`
 }
 
 type UserJoinSessionResponse struct {
-	Id string
+	Id string `json:"id"`
+}
+
+type UserJoinedSessionResponse struct {
+	UserName string `json:"username"`
 }
 
 type UserLeaveSessionResponse struct {
-	Id string
+	Id string `json:"id"`
+}
+
+type UserLeftSessionResponse struct {
+	UserName string `json:"username"`
 }
 
 type UserChatResponse struct {
-	Message  string
-	UserName string
+	Message  string `json:"message"`
+	UserName string `json:"username"`
 }
 
 type UserCreationInfo struct {
@@ -86,9 +97,12 @@ type UserSessionInfo struct {
 	SessionId string `json:"session_id"`
 }
 
+type UserRoomInfo struct {
+	UserId string `json:"user_id"`
+}
+
 type UserChatMessage struct {
 	UserId  string `json:"user_id"`
-	RoomId  string `json:"session_id"`
 	Message string `json:"message"`
 }
 
@@ -108,7 +122,7 @@ func (api *API) handleUserCreation(message string) string {
 	if err != nil {
 		return handleError(err.Error())
 	}
-	return handleResponse(u)
+	return handleResponse(UserInfoResponse{u.Id, u.Username})
 }
 
 func (api *API) handleUserAuthentication(message string) string {
@@ -123,7 +137,7 @@ func (api *API) handleUserAuthentication(message string) string {
 	if err != nil {
 		return handleError(err.Error())
 	}
-	return handleResponse(u)
+	return handleResponse(UserInfoResponse{Id: u.Id, Username: u.Username})
 }
 
 func (api *API) handleUserRoomCreation(c socketio.Conn, message string) string {
@@ -134,11 +148,15 @@ func (api *API) handleUserRoomCreation(c socketio.Conn, message string) string {
 	if err != nil {
 		return handleError(err.Error())
 	}
-	s, err := api.CreateSession(sessionInfo.UserId, sessionInfo.Capacity, sessionInfo.Rating, sessionInfo.Constraint)
+	u, err := api.User(sessionInfo.UserId)
 	if err != nil {
 		return handleError(err.Error())
 	}
-	api.Server.JoinRoom("/chat", s.Id(), c)
+	s, err := api.CreateSession(u.Id, sessionInfo.Capacity, sessionInfo.Rating, sessionInfo.Constraint)
+	if err != nil {
+		return handleError(err.Error())
+	}
+	api.Server.JoinRoom(c.Namespace(), s.Id(), c)
 	return handleResponse(UserCreateSessionResponse{Id: s.Id()})
 }
 
@@ -151,28 +169,42 @@ func (api *API) handleUserJoinedRoom(c socketio.Conn, message string) string {
 		return handleError("Could not Join session")
 
 	}
-	err = api.JoinSession(sessionInfo.SessionId, sessionInfo.UserId)
+	u, err := api.User(sessionInfo.UserId)
 	if err != nil {
 		return handleError(err.Error())
 	}
-	api.Server.JoinRoom("/chat", sessionInfo.SessionId, c)
+	err = api.JoinSession(sessionInfo.SessionId, u.Id)
+	if err != nil {
+		return handleError(err.Error())
+	}
+	api.Server.JoinRoom(c.Namespace(), sessionInfo.SessionId, c)
+	api.Server.BroadcastToRoom(c.Namespace(), sessionInfo.SessionId, UserJoinedRoom, handleResponse(UserJoinedSessionResponse{UserName: u.Username}))
 	return handleResponse(UserJoinSessionResponse{Id: sessionInfo.SessionId})
 }
 
 func (api *API) handleUserLeavesRoom(c socketio.Conn, message string) string {
 	log.Println("leave session:", message)
 
-	var sessionInfo UserSessionInfo
-	err := json.Unmarshal([]byte(message), &sessionInfo)
-	if err != nil {
-		return handleError("Could not Leave Session")
-	}
-	err = api.LeaveSession(sessionInfo.SessionId, sessionInfo.UserId)
+	var userRoomInfo UserRoomInfo
+	err := json.Unmarshal([]byte(message), &userRoomInfo)
 	if err != nil {
 		return handleError(err.Error())
 	}
-	api.Server.LeaveRoom("/chat", sessionInfo.SessionId, c)
-	return handleResponse(UserLeaveSessionResponse{Id: sessionInfo.SessionId})
+	u, err := api.User(userRoomInfo.UserId)
+	if err != nil {
+		return handleError(err.Error())
+	}
+	s, err := api.UserSession(u.Id)
+	if err != nil {
+		return handleError("Could not Leave Session")
+	}
+	err = api.LeaveSession(s.Id(), u.Id)
+	if err != nil {
+		return handleError(err.Error())
+	}
+	api.Server.BroadcastToRoom(c.Namespace(), s.Id(), UserLeftRoom, handleResponse(UserLeftSessionResponse{UserName: u.Username}))
+	api.Server.LeaveRoom(c.Namespace(), s.Id(), c)
+	return handleResponse(UserLeaveSessionResponse{Id: s.Id()})
 }
 
 func handleError(errMsg string) string {
@@ -192,7 +224,7 @@ func handleResponse(resp any) string {
 	return string(parsedResp)
 }
 
-func (api *API) handleChatMessage(namespace string, message string) string {
+func (api *API) handleChatMessage(c socketio.Conn, message string) string {
 	log.Println("user message session:", message)
 
 	var chatMessageInfo UserChatMessage
@@ -200,9 +232,18 @@ func (api *API) handleChatMessage(namespace string, message string) string {
 	if err != nil {
 		return handleError("Could not send message")
 	}
-	resp := UserChatResponse{Message: chatMessageInfo.Message, UserName: chatMessageInfo.UserId}
-	api.Server.BroadcastToRoom(namespace, chatMessageInfo.RoomId, "chatMessage", resp)
-	return handleResponse(resp)
+	u, err := api.User(chatMessageInfo.UserId)
+	if err != nil {
+		return handleError(err.Error())
+	}
+	s, err := api.UserSession(u.Id)
+	if err != nil {
+		return handleError(err.Error())
+	}
+	resp := handleResponse(UserChatResponse{Message: chatMessageInfo.Message, UserName: u.Username})
+
+	api.Server.BroadcastToRoom(c.Namespace(), s.Id(), ChatMessage, resp)
+	return resp
 }
 
 func (api *API) handleUserUpdate(message string) string {
@@ -250,9 +291,8 @@ func (api *API) CreateHandlers() {
 		return api.handleUserLeavesRoom(c, msg)
 	})
 
-	api.Server.OnEvent("/chat", UserMessage, func(c socketio.Conn, msg string) string {
-		c.SetContext("/chat")
-		return api.handleChatMessage("/chat", msg)
+	api.Server.OnEvent("/", UserMessage, func(c socketio.Conn, msg string) string {
+		return api.handleChatMessage(c, msg)
 	})
 
 	api.Server.OnEvent("/", "bye", func(c socketio.Conn) string {

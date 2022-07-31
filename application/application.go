@@ -59,6 +59,10 @@ func (app *Application) UpdateUser(userId string, username *string, password *st
 	return app.userService.UpdateUser(userId, username, password)
 }
 
+func (app *Application) User(userId string) (*user.User, error) {
+	return app.userService.User(userId)
+}
+
 func (app *Application) DeleteUser(id string) error {
 	return app.userService.DeleteUser(id)
 }

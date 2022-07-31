@@ -10,6 +10,7 @@ var (
 )
 
 type Service interface {
+	User(id string) (*User, error)
 	CreateUser(username string, password string) (*User, error)
 	Authenticate(username string, password string) (*User, error)
 	UpdateUser(userId string, username *string, password *string) (*User, error)

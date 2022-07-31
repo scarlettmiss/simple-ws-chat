@@ -6,7 +6,8 @@ import (
 
 var (
 	// ErrNotFound is returned when a session is not found
-	ErrNotFound = errors.New("session not found")
+	ErrNotFound      = errors.New("session not found")
+	ErrUserInSession = errors.New("user already in a session")
 )
 
 type Service interface {

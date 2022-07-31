@@ -22,14 +22,14 @@ func (r *Repository) CreateUser(username string, password string) (*user.User, e
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	u, err := r.userByUsername(username)
+	_, err := r.userByUsername(username)
 	if err == nil {
 		return nil, user.ErrUserExists
 	} else if !errors.Is(err, user.ErrNotFound) {
 		return nil, err
 	}
 
-	u = user.New(username, password)
+	u := user.New(username, password)
 
 	r.users[u.Id] = u
 	return u, nil
