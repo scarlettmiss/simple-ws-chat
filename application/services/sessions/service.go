@@ -53,9 +53,18 @@ func (s *Service) JoinSession(id string, userId string) error {
 	if err != nil {
 		return err
 	}
+
+	_, err = s.UserSession(userId)
+	if err == nil {
+		return session.ErrUserInSession
+	} else if !errors.Is(err, session.ErrNotFound) {
+		return err
+	}
+
 	if len(sess.Users()) == sess.Capacity() {
 		return errors.New("session is full")
 	}
+
 	u, err := s.users.User(userId)
 	if err != nil {
 		return err
