@@ -60,6 +60,18 @@ func (s *Session) Id() string {
 	return s.id
 }
 
+func (s *Session) MinRating() int {
+	return s.minRating
+}
+
+func (s *Session) Constraint() string {
+	return string(s.constraint)
+}
+
+func (s *Session) Owner() string {
+	return s.owner
+}
+
 func (s *Session) AddUser(u *user.User) error {
 	_, exists := s.users[u.Id]
 	if exists {
@@ -78,6 +90,10 @@ func (s *Session) RemoveUser(userId string) error {
 	}
 
 	delete(s.users, userId)
+	for _, u := range s.users {
+		s.owner = u.Id
+		break
+	}
 
 	return nil
 }

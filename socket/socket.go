@@ -17,6 +17,7 @@ const (
 	UserAuthentication     string = "userAuthentication"
 	UpdateUser             string = "updateUser"
 	CreateRoom             string = "createRoom"
+	getRooms               string = "getRooms"
 	UserJoinRoom           string = "userJoinRoom"
 	UserJoinedRoom         string = "userJoinedRoom"
 	UserLeaveRoom          string = "userLeaveRoom"
@@ -104,6 +105,15 @@ type UserRoomInfo struct {
 type UserChatMessage struct {
 	UserId  string `json:"user_id"`
 	Message string `json:"message"`
+}
+
+type SessionsInfo struct {
+	Id         string `json:"id"`
+	UsersCount int    `json:"usersCount"`
+	Capacity   int    `json:"capacity"`
+	MinRating  int    `json:"minRating"`
+	Constraint string `json:"constraint"`
+	Owner      string `json:"owner"`
 }
 
 func (api *API) handleDefaultMessage() string {
@@ -259,6 +269,24 @@ func (api *API) handleUserUpdate(message string) string {
 	return handleResponse(u)
 }
 
+func (api *API) handleSessionsRequest() string {
+	sessions := api.GetSessions()
+	data := make([]SessionsInfo, len(sessions))
+	i := 0
+	for _, v := range sessions {
+		data[i] = SessionsInfo{
+			Id:         v.Id(),
+			UsersCount: len(v.Users()),
+			Capacity:   v.Capacity(),
+			MinRating:  v.MinRating(),
+			Constraint: v.Constraint(),
+			Owner:      v.Owner(),
+		}
+		i++
+	}
+	return handleResponse(data)
+}
+
 func (api *API) CreateHandlers() {
 	api.Server.OnConnect("/", func(c socketio.Conn) error {
 		c.SetContext("")
@@ -293,6 +321,10 @@ func (api *API) CreateHandlers() {
 
 	api.Server.OnEvent("/", UserMessage, func(c socketio.Conn, msg string) string {
 		return api.handleChatMessage(c, msg)
+	})
+
+	api.Server.OnEvent("/", getRooms, func(c socketio.Conn) string {
+		return api.handleSessionsRequest()
 	})
 
 	api.Server.OnEvent("/", "bye", func(c socketio.Conn) string {

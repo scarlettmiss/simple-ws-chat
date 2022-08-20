@@ -15,12 +15,13 @@ type Service interface {
 	JoinSession(id string, userId string) error
 	LeaveSession(id string, userId string) error
 	UserSession(userId string) (*Session, error)
+	Sessions() map[string]*Session
 }
 
 type Repository interface {
 	CreateSession(userId string, capacity int, rating int, constraint Constraint) (*Session, error)
 	Session(id string) (*Session, error)
-	Sessions() (map[string]*Session, error)
+	Sessions() map[string]*Session
 	UpdateSession(s *Session) error
 	DeleteSession(id string) error
 	UserSession(userId string) (*Session, error)

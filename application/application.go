@@ -47,6 +47,10 @@ func (app *Application) UserSession(userId string) (*session.Session, error) {
 	return app.sessionService.UserSession(userId)
 }
 
+func (app *Application) GetSessions() map[string]*session.Session {
+	return app.sessionService.Sessions()
+}
+
 func (app *Application) CreateUser(username string, password string) (*user.User, error) {
 	return app.userService.CreateUser(username, password)
 }

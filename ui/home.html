@@ -16,7 +16,7 @@
 <body>
 <ul id="messages"></ul>
 
-<div>
+<div id="userActions">
     <div>
         <label for="username" style="color: white">username</label>
         <input id="username" autocomplete="off" />
@@ -29,7 +29,8 @@
     <button onclick="logUser()">logIn</button>
 </div>
 
-<div>
+<div id="roomActions" style="display: none">
+    <div id="roomCreation" >
     <div>
         <label for="skill" style="color: white">skill</label>
         <input id="skill" type="range" min="1000" max="2000" step="100" value="50">
@@ -47,22 +48,27 @@
             <option value="invitationOnly">Invitation</option>
         </select>
     </div>
+
     <button onclick="createRoom()">create Room</button>
-    <button onclick="leaveRoom()">Leave Room</button>
-</div>
-
-<div>
-    <div>
-        <label for="roomId" style="color: white">Room Id</label>
-        <input id="roomId">
+    <button onclick="onRoomSearchPress()">Rooms</button>
     </div>
-    <button onclick="joinRoom()">Join room</button>
+    <div id="roomJoin">
+        <div>
+            <label for="roomId" style="color: white">Room Id</label>
+            <input id="roomId">
+        </div>
+
+        <button onclick="joinRoom()">Join room</button>
+    </div>
 </div>
 
-<div>
+
+<div id="messageActions" style="display: none">
     <label for="message" style="color: white">Message</label>
     <input id="message"/>
     <button onclick="sendChatMessage()">Send</button>
+    <button onclick="leaveRoom()">Leave Room</button>
+
 </div>
 
 <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
@@ -99,18 +105,69 @@
     });
     var user
     var room
+    var rooms
+
+    var interval
+
+    function  setRoomInterval() {
+        if(!interval) {
+            interval = setInterval(getRooms, 3000)
+        }
+    }
+
+    function clearRoomInterval() {
+        clearInterval(interval)
+    }
+
+    function onRoomSearchPress() {
+        setRoomInterval()
+        $('#roomJoin').show()
+        $("#roomCreation").hide()
+    }
+
+    function setElementsAfterUser() {
+        if(user) {
+            $('#userActions').hide()
+            $('#roomActions').show()
+            $('#roomCreation').show()
+            $('#roomJoin').hide()
+            $('#messageActions').hide()
+        } else {
+            $('#userActions').show()
+            $('#roomActions').hide()
+            $('#messageActions').hide()
+        }
+    }
+
+    function setElementsAfterRoom() {
+        if(room) {
+            $('#userActions').hide()
+            $('#roomActions').hide()
+            $('#roomCreation').show()
+            $('#roomJoin').hide()
+            $('#messageActions').show()
+        } else {
+            $('#userActions').hide()
+            $('#roomActions').show()
+            $('#roomCreation').show()
+            $('#roomJoin').hide()
+            $('#messageActions').hide()
+        }
+    }
+
     function createUser() {
         console.log("clicked")
         const username = $('#username').val();
         const password = $('#password').val();
         socket.emit('createUser', JSON.stringify({"username": username, "password" : password}), function(data) {
             const parced = JSON.parse(data)
-            if (parced) {
+            if (parced && !parced.error) {
                 user = parced
                 $('#messages').append($('<li>').text('userCreated: ' + data));
             } else {
                 console.error(data)
             }
+            setElementsAfterUser()
         });
     }
     function logUser() {
@@ -120,12 +177,13 @@
         const m =  {"username": username, "password" : password}
         socket.emit('userAuthentication', JSON.stringify(m), function(data) {
             const parced = JSON.parse(data)
-            if (parced) {
+            if (parced && !parced.error) {
                 user = parced
-                $('#messages').append($('<li>').text('userCreated: ' + data));
+                $('#messages').append($('<li>').text('user Logged in: ' + data));
             } else {
                 console.error(data)
             }
+            setElementsAfterUser()
         });
     }
 
@@ -146,6 +204,7 @@
             } else {
                 console.error(data)
             }
+            setElementsAfterRoom()
         });
     }
 
@@ -161,6 +220,7 @@
             } else {
                 console.error(data)
             }
+            setElementsAfterRoom()
         });
     }
 
@@ -174,6 +234,22 @@
             if (parced) {
                 room = parced
                 $('#messages').append($('<li>').text('room Joined: ' + data));
+            } else {
+                console.error(data)
+            }
+            setElementsAfterRoom()
+            clearRoomInterval()
+        });
+    }
+
+    function getRooms() {
+        console.log("getRooms")
+        socket.emit('getRooms', function(data) {
+            console.log(data)
+            const parced = JSON.parse(data)
+            if (parced) {
+                rooms = parced
+                $('#messages').append($('<li>').text('rooms: ' + data));
             } else {
                 console.error(data)
             }

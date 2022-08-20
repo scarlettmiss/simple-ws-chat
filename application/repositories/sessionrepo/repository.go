@@ -45,11 +45,11 @@ func (r *Repository) Session(id string) (*session.Session, error) {
 	return sess, nil
 }
 
-func (r *Repository) Sessions() (map[string]*session.Session, error) {
+func (r *Repository) Sessions() map[string]*session.Session {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	return r.sessions, nil
+	return r.sessions
 }
 
 func (r *Repository) userSession(userId string) (*session.Session, error) {

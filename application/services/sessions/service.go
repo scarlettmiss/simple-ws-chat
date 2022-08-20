@@ -89,3 +89,7 @@ func (s *Service) LeaveSession(id string, userId string) error {
 
 	return s.sessions.UpdateSession(sess)
 }
+
+func (s *Service) Sessions() map[string]*session.Session {
+	return s.sessions.Sessions()
+}
