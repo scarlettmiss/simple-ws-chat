@@ -3,6 +3,7 @@ package sessionrepo
 import (
 	"errors"
 	"github.com/scarlettmiss/engine-w/application/domain/session"
+	"github.com/scarlettmiss/engine-w/application/domain/user"
 	"sync"
 )
 
@@ -17,16 +18,16 @@ func New() *Repository {
 	}
 }
 
-func (r *Repository) CreateSession(userId string, capacity int, rating int, constraint session.Constraint) (*session.Session, error) {
+func (r *Repository) CreateSession(u *user.User, capacity int, minRating, maxRating int, constraint session.Constraint) (*session.Session, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
-	_, err := r.userSession(userId)
+	_, err := r.userSession(u.Id())
 	if err == nil {
 		return nil, session.ErrUserInSession
 	} else if !errors.Is(err, session.ErrNotFound) {
 		return nil, err
 	}
-	sess := session.New(userId, capacity, rating, constraint)
+	sess := session.New(u, capacity, minRating, maxRating, constraint)
 
 	r.sessions[sess.Id()] = sess
 

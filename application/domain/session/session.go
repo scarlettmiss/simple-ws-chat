@@ -33,19 +33,49 @@ type Session struct {
 	users      map[string]*user.User
 	capacity   int
 	minRating  int
+	maxRating  int
 	constraint Constraint
-	owner      string
+	owner      *user.User
 }
 
-func New(userId string, capacity int, minRating int, constraint Constraint) *Session {
+func New(owner *user.User, capacity int, minRating int, maxRating int, constraint Constraint) *Session {
 	return &Session{
 		id:         shortuuid.New(),
 		users:      map[string]*user.User{},
 		capacity:   capacity,
 		minRating:  minRating,
+		maxRating:  maxRating,
 		constraint: constraint,
-		owner:      userId,
+		owner:      owner,
 	}
+}
+
+func (s *Session) SetUsers(users map[string]*user.User) {
+	s.users = users
+}
+
+func (s *Session) SetCapacity(capacity int) {
+	s.capacity = capacity
+}
+
+func (s *Session) SetMinRating(minRating int) {
+	s.minRating = minRating
+}
+
+func (s *Session) MaxRating() int {
+	return s.maxRating
+}
+
+func (s *Session) SetMaxRating(maxRating int) {
+	s.maxRating = maxRating
+}
+
+func (s *Session) SetConstraint(constraint Constraint) {
+	s.constraint = constraint
+}
+
+func (s *Session) SetOwner(owner *user.User) {
+	s.owner = owner
 }
 
 func (s *Session) Users() map[string]*user.User {
@@ -68,17 +98,17 @@ func (s *Session) Constraint() string {
 	return string(s.constraint)
 }
 
-func (s *Session) Owner() string {
+func (s *Session) Owner() *user.User {
 	return s.owner
 }
 
 func (s *Session) AddUser(u *user.User) error {
-	_, exists := s.users[u.Id]
+	_, exists := s.users[u.Id()]
 	if exists {
 		return errors.New("user already exists")
 	}
 
-	s.users[u.Id] = u
+	s.users[u.Id()] = u
 
 	return nil
 }
@@ -91,7 +121,7 @@ func (s *Session) RemoveUser(userId string) error {
 
 	delete(s.users, userId)
 	for _, u := range s.users {
-		s.owner = u.Id
+		s.owner = u
 		break
 	}
 

@@ -31,7 +31,7 @@ func (r *Repository) CreateUser(username string, password string) (*user.User, e
 
 	u := user.New(username, password)
 
-	r.users[u.Id] = u
+	r.users[u.Id()] = u
 	return u, nil
 }
 
@@ -49,7 +49,7 @@ func (r *Repository) User(id string) (*user.User, error) {
 
 func (r *Repository) userByUsername(username string) (*user.User, error) {
 	for _, u := range r.users {
-		if u.Username == username {
+		if u.Username() == username {
 			return u, nil
 		}
 	}
@@ -74,13 +74,17 @@ func (r *Repository) UpdateUser(u *user.User) error {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	u.UpdatedOn = time.Now()
+	u.SetUpdatedOn(time.Now())
 
-	_, ok := r.users[u.Id]
+	if !u.Online() {
+		u.SetLastSeenOnline(time.Now())
+	}
+
+	_, ok := r.users[u.Id()]
 	if !ok {
 		return user.ErrNotFound
 	}
-	r.users[u.Id] = u
+	r.users[u.Id()] = u
 
 	return nil
 

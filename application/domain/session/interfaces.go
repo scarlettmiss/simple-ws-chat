@@ -2,24 +2,28 @@ package session
 
 import (
 	"errors"
+	"github.com/scarlettmiss/engine-w/application/domain/user"
 )
 
 var (
 	// ErrNotFound is returned when a session is not found
 	ErrNotFound      = errors.New("session not found")
 	ErrUserInSession = errors.New("user already in a session")
+	ErrSessionFull   = errors.New("session is full")
+	ErrNoSessions    = errors.New("no Session available")
 )
 
 type Service interface {
-	CreateSession(userId string, capacity int, rating int, constraint string) (*Session, error)
-	JoinSession(id string, userId string) error
+	CreateSession(owner *user.User, capacity int, minRating int, maxRating int, constraint string) (*Session, error)
+	JoinSession(id string, userId string) (*Session, error)
 	LeaveSession(id string, userId string) error
 	UserSession(userId string) (*Session, error)
 	Sessions() map[string]*Session
+	RequestJoinSession(userId string) (*Session, error)
 }
 
 type Repository interface {
-	CreateSession(userId string, capacity int, rating int, constraint Constraint) (*Session, error)
+	CreateSession(owner *user.User, capacity int, minRating int, maxRating int, constraint Constraint) (*Session, error)
 	Session(id string) (*Session, error)
 	Sessions() map[string]*Session
 	UpdateSession(s *Session) error

@@ -27,25 +27,18 @@ func (s *Service) User(id string) (*user.User, error) {
 	return s.users.User(id)
 }
 
-func (s *Service) UpdateUser(userId string, username *string, password *string) (*user.User, error) {
-	u, err := s.users.User(userId)
+func (s *Service) UpdateUser(user *user.User) error {
+	u, err := s.users.User(user.Id())
 	if err != nil {
-		return nil, err
-	}
-
-	if username != nil {
-		u.Username = *username
-	}
-	if password != nil {
-		u.SetPassword(*password)
+		return err
 	}
 
 	err = s.users.UpdateUser(u)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return u, nil
+	return nil
 }
 
 func (s *Service) DeleteUser(id string) error {

@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/scarlettmiss/engine-w/application"
+	"github.com/scarlettmiss/engine-w/application/domain/session"
+	"github.com/scarlettmiss/engine-w/application/domain/user"
 	"log"
+	"time"
 )
 
 type API struct {
@@ -25,6 +28,7 @@ const (
 	UserMessage            string = "userMessage"
 	ChatMessage            string = "chatMessage"
 	UserRequestMatchMaking string = "userRequestMatchMaking"
+	GiveAchivement         string = "giveAchivement"
 )
 
 func New(application *application.Application) (*API, error) {
@@ -36,6 +40,10 @@ func New(application *application.Application) (*API, error) {
 	return api, nil
 }
 
+type UserContext struct {
+	UserId string `json:"userId"`
+}
+
 type ErrorMessage struct {
 	Error string `json:"error"`
 }
@@ -43,36 +51,21 @@ type ErrorMessage struct {
 type UserInfoResponse struct {
 	Id       string `json:"id"`
 	Username string `json:"username"`
+	Online   bool   `json:"online"`
+	Skill    int    `json:"skill"`
 }
 
-type UserCreateSessionResponse struct {
-	Id string `json:"id"`
+type GenericResponse struct {
+	Message string `json:"message"`
 }
 
-type UserJoinSessionResponse struct {
-	Id string `json:"id"`
-}
-
-type UserJoinedSessionResponse struct {
+type BroadcastActionUsername struct {
 	UserName string `json:"username"`
 }
 
-type UserLeaveSessionResponse struct {
-	Id string `json:"id"`
-}
-
-type UserLeftSessionResponse struct {
-	UserName string `json:"username"`
-}
-
-type UserChatResponse struct {
+type BroadcastUserMessage struct {
 	Message  string `json:"message"`
 	UserName string `json:"username"`
-}
-
-type UserCreationInfo struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
 }
 
 type UserAuthenticationInfo struct {
@@ -81,49 +74,43 @@ type UserAuthenticationInfo struct {
 }
 
 type UserUpdateInfo struct {
-	UserId   string  `json:"user_id"`
 	Username *string `json:"username"`
 	Password *string `json:"password"`
 }
 
 type SessionCreationInfo struct {
-	UserId     string `json:"user_id"`
 	Capacity   int    `json:"capacity"`
-	Rating     int    `json:"rating"`
+	MinRating  int    `json:"minRating"`
+	MaxRating  int    `json:"maxRating"`
 	Constraint string `json:"constraint"`
 }
 
 type UserSessionInfo struct {
-	UserId    string `json:"user_id"`
 	SessionId string `json:"session_id"`
 }
 
-type UserRoomInfo struct {
-	UserId string `json:"user_id"`
-}
-
 type UserChatMessage struct {
-	UserId  string `json:"user_id"`
 	Message string `json:"message"`
 }
 
 type SessionsInfo struct {
-	Id         string `json:"id"`
-	UsersCount int    `json:"usersCount"`
-	Capacity   int    `json:"capacity"`
-	MinRating  int    `json:"minRating"`
-	Constraint string `json:"constraint"`
-	Owner      string `json:"owner"`
+	Id            string             `json:"id"`
+	UsersCount    int                `json:"usersCount"`
+	Capacity      int                `json:"capacity"`
+	MinRating     int                `json:"minRating"`
+	Constraint    string             `json:"constraint"`
+	OwnerUsername string             `json:"owner"`
+	Users         []UserInfoResponse `json:"users"`
 }
 
 func (api *API) handleDefaultMessage() string {
 	return handleError("Error")
 }
 
-func (api *API) handleUserCreation(message string) string {
+func (api *API) handleUserCreation(c socketio.Conn, message string) string {
 	log.Println("create user:", message)
 
-	var userInfo UserCreationInfo
+	var userInfo UserAuthenticationInfo
 	err := json.Unmarshal([]byte(message), &userInfo)
 	if err != nil {
 		return handleError("Could not create User")
@@ -132,10 +119,14 @@ func (api *API) handleUserCreation(message string) string {
 	if err != nil {
 		return handleError(err.Error())
 	}
-	return handleResponse(UserInfoResponse{u.Id, u.Username})
+	u.SetOnline(true)
+	api.Application.UpdateUser(u)
+
+	c.SetContext(UserContext{UserId: u.Id()})
+	return handleResponse(UserInfoResponse{u.Id(), u.Username(), u.Online(), u.SkillPoints()})
 }
 
-func (api *API) handleUserAuthentication(message string) string {
+func (api *API) handleUserAuthentication(c socketio.Conn, message string) string {
 	log.Println("Authenticate user:", message)
 
 	var userInfo UserAuthenticationInfo
@@ -147,27 +138,84 @@ func (api *API) handleUserAuthentication(message string) string {
 	if err != nil {
 		return handleError(err.Error())
 	}
-	return handleResponse(UserInfoResponse{Id: u.Id, Username: u.Username})
+
+	u.SetOnline(true)
+	u.SetUpdatedOn(time.Now())
+	api.Application.UpdateUser(u)
+
+	c.SetContext(UserContext{UserId: u.Id()})
+	return handleResponse(UserInfoResponse{Id: u.Id(), Username: u.Username(), Online: u.Online(), Skill: u.SkillPoints()})
+}
+
+func (api *API) handleUserDisconnect(c socketio.Conn) string {
+	log.Println("log out user:")
+	ctx := c.Context().(UserContext)
+	u, err := api.User(ctx.UserId)
+	if err != nil {
+		return handleError(err.Error())
+	}
+	s, err := api.UserSession(u.Id())
+	if err != nil {
+		return handleError(err.Error())
+	}
+	err = api.userLeavesRoomAction(c, u, s)
+	if err != nil {
+		return handleError(err.Error())
+	}
+
+	u.SetOnline(false)
+	u.SetUpdatedOn(time.Now())
+	u.SetLastSeenOnline(time.Now())
+	api.Application.UpdateUser(u)
+
+	c.SetContext(UserContext{UserId: ""})
+
+	return handleResponse(GenericResponse{Message: "Disconnected"})
 }
 
 func (api *API) handleUserRoomCreation(c socketio.Conn, message string) string {
 	log.Println("create session:", message)
 
 	var sessionInfo SessionCreationInfo
+	ctx := c.Context().(UserContext)
 	err := json.Unmarshal([]byte(message), &sessionInfo)
 	if err != nil {
 		return handleError(err.Error())
 	}
-	u, err := api.User(sessionInfo.UserId)
+	u, err := api.User(ctx.UserId)
 	if err != nil {
 		return handleError(err.Error())
 	}
-	s, err := api.CreateSession(u.Id, sessionInfo.Capacity, sessionInfo.Rating, sessionInfo.Constraint)
+	sess, err := api.CreateSession(u, sessionInfo.Capacity, sessionInfo.MinRating, sessionInfo.MaxRating, sessionInfo.Constraint)
 	if err != nil {
 		return handleError(err.Error())
 	}
-	api.Server.JoinRoom(c.Namespace(), s.Id(), c)
-	return handleResponse(UserCreateSessionResponse{Id: s.Id()})
+	api.Server.JoinRoom(c.Namespace(), sess.Id(), c)
+
+	users := api.getUsersResponse(sess.Users())
+	return handleResponse(
+		SessionsInfo{
+			Id:            sess.Id(),
+			Capacity:      sess.Capacity(),
+			Constraint:    sess.Constraint(),
+			MinRating:     sess.MinRating(),
+			OwnerUsername: sess.Owner().Username(),
+			Users:         users,
+		})
+}
+func (api *API) getUsersResponse(usersMap map[string]*user.User) []UserInfoResponse {
+	var users = make([]UserInfoResponse, len(usersMap))
+	i := 0
+	for _, v := range usersMap {
+		users[i] = UserInfoResponse{
+			Id:       v.Id(),
+			Username: v.Username(),
+			Online:   v.Online(),
+			Skill:    v.SkillPoints(),
+		}
+		i++
+	}
+	return users
 }
 
 func (api *API) handleUserJoinedRoom(c socketio.Conn, message string) string {
@@ -179,42 +227,86 @@ func (api *API) handleUserJoinedRoom(c socketio.Conn, message string) string {
 		return handleError("Could not Join session")
 
 	}
-	u, err := api.User(sessionInfo.UserId)
+	ctx := c.Context().(UserContext)
+	u, err := api.User(ctx.UserId)
 	if err != nil {
 		return handleError(err.Error())
 	}
-	err = api.JoinSession(sessionInfo.SessionId, u.Id)
+
+	sess, err := api.JoinSession(sessionInfo.SessionId, u.Id())
 	if err != nil {
 		return handleError(err.Error())
 	}
-	api.Server.JoinRoom(c.Namespace(), sessionInfo.SessionId, c)
-	api.Server.BroadcastToRoom(c.Namespace(), sessionInfo.SessionId, UserJoinedRoom, handleResponse(UserJoinedSessionResponse{UserName: u.Username}))
-	return handleResponse(UserJoinSessionResponse{Id: sessionInfo.SessionId})
+
+	sessId := sess.Id()
+	api.Server.JoinRoom(c.Namespace(), sessId, c)
+	api.Server.BroadcastToRoom(c.Namespace(), sessId, UserJoinedRoom, handleResponse(BroadcastActionUsername{UserName: u.Username()}))
+
+	users := api.getUsersResponse(sess.Users())
+	return handleResponse(
+		SessionsInfo{
+			Id:            sess.Id(),
+			Capacity:      sess.Capacity(),
+			Constraint:    sess.Constraint(),
+			MinRating:     sess.MinRating(),
+			OwnerUsername: sess.Owner().Username(),
+			Users:         users,
+		})
+
+}
+
+func (api *API) handleMatchMaking(c socketio.Conn, message string) string {
+	log.Println("Match-making msg:", message)
+	ctx := c.Context().(UserContext)
+	u, err := api.User(ctx.UserId)
+	if err != nil {
+		return handleError(err.Error())
+	}
+	sess, err := api.RequestJoinSession(u.Id())
+	if err != nil {
+		return handleError(err.Error())
+	}
+	sessId := sess.Id()
+	api.Server.JoinRoom(c.Namespace(), sessId, c)
+	api.Server.BroadcastToRoom(c.Namespace(), sessId, UserJoinedRoom, handleResponse(BroadcastActionUsername{UserName: u.Username()}))
+	users := api.getUsersResponse(sess.Users())
+	return handleResponse(
+		SessionsInfo{
+			Id:            sess.Id(),
+			Capacity:      sess.Capacity(),
+			Constraint:    sess.Constraint(),
+			MinRating:     sess.MinRating(),
+			OwnerUsername: sess.Owner().Username(),
+			Users:         users,
+		})
 }
 
 func (api *API) handleUserLeavesRoom(c socketio.Conn, message string) string {
 	log.Println("leave session:", message)
-
-	var userRoomInfo UserRoomInfo
-	err := json.Unmarshal([]byte(message), &userRoomInfo)
+	ctx := c.Context().(UserContext)
+	u, err := api.User(ctx.UserId)
 	if err != nil {
 		return handleError(err.Error())
 	}
-	u, err := api.User(userRoomInfo.UserId)
-	if err != nil {
-		return handleError(err.Error())
-	}
-	s, err := api.UserSession(u.Id)
+	s, err := api.UserSession(u.Id())
 	if err != nil {
 		return handleError("Could not Leave Session")
 	}
-	err = api.LeaveSession(s.Id(), u.Id)
+	err = api.userLeavesRoomAction(c, u, s)
 	if err != nil {
 		return handleError(err.Error())
 	}
-	api.Server.BroadcastToRoom(c.Namespace(), s.Id(), UserLeftRoom, handleResponse(UserLeftSessionResponse{UserName: u.Username}))
+	return handleResponse(GenericResponse{Message: "Success"})
+}
+
+func (api *API) userLeavesRoomAction(c socketio.Conn, u *user.User, s *session.Session) error {
+	err := api.LeaveSession(s.Id(), u.Id())
+	if err != nil {
+		return err
+	}
+	api.Server.BroadcastToRoom(c.Namespace(), s.Id(), UserLeftRoom, handleResponse(BroadcastActionUsername{UserName: u.Username()}))
 	api.Server.LeaveRoom(c.Namespace(), s.Id(), c)
-	return handleResponse(UserLeaveSessionResponse{Id: s.Id()})
+	return nil
 }
 
 func handleError(errMsg string) string {
@@ -242,27 +334,44 @@ func (api *API) handleChatMessage(c socketio.Conn, message string) string {
 	if err != nil {
 		return handleError("Could not send message")
 	}
-	u, err := api.User(chatMessageInfo.UserId)
+	ctx := c.Context().(UserContext)
+	u, err := api.User(ctx.UserId)
 	if err != nil {
 		return handleError(err.Error())
 	}
-	s, err := api.UserSession(u.Id)
+	s, err := api.UserSession(u.Id())
 	if err != nil {
 		return handleError(err.Error())
 	}
-	resp := handleResponse(UserChatResponse{Message: chatMessageInfo.Message, UserName: u.Username})
+	resp := handleResponse(BroadcastUserMessage{Message: chatMessageInfo.Message, UserName: u.Username()})
 
 	api.Server.BroadcastToRoom(c.Namespace(), s.Id(), ChatMessage, resp)
 	return resp
 }
 
-func (api *API) handleUserUpdate(message string) string {
+func (api *API) handleUserUpdate(c socketio.Conn, message string) string {
 	var userInfo UserUpdateInfo
 	err := json.Unmarshal([]byte(message), &userInfo)
 	if err != nil {
 		return handleError("Could not update User")
 	}
-	u, err := api.Application.UpdateUser(userInfo.UserId, userInfo.Username, userInfo.Password)
+	ctx := c.Context().(UserContext)
+	u, err := api.User(ctx.UserId)
+	if err != nil {
+		return handleError(err.Error())
+	}
+
+	if userInfo.Username != nil {
+		u.SetUsername(*userInfo.Username)
+		u.SetUpdatedOn(time.Now())
+	}
+
+	if userInfo.Password != nil {
+		u.SetPassword(*userInfo.Password)
+		u.SetUpdatedOn(time.Now())
+	}
+
+	err = api.Application.UpdateUser(u)
 	if err != nil {
 		return handleError(err.Error())
 	}
@@ -274,13 +383,15 @@ func (api *API) handleSessionsRequest() string {
 	data := make([]SessionsInfo, len(sessions))
 	i := 0
 	for _, v := range sessions {
+		users := api.getUsersResponse(v.Users())
 		data[i] = SessionsInfo{
-			Id:         v.Id(),
-			UsersCount: len(v.Users()),
-			Capacity:   v.Capacity(),
-			MinRating:  v.MinRating(),
-			Constraint: v.Constraint(),
-			Owner:      v.Owner(),
+			Id:            v.Id(),
+			UsersCount:    len(v.Users()),
+			Capacity:      v.Capacity(),
+			MinRating:     v.MinRating(),
+			Constraint:    v.Constraint(),
+			OwnerUsername: v.Owner().Username(),
+			Users:         users,
 		}
 		i++
 	}
@@ -289,22 +400,27 @@ func (api *API) handleSessionsRequest() string {
 
 func (api *API) CreateHandlers() {
 	api.Server.OnConnect("/", func(c socketio.Conn) error {
-		c.SetContext("")
+		c.SetContext(UserContext{})
 		log.Println("connected:", c.ID())
 		return nil
 	})
+	api.Server.OnDisconnect("/", func(c socketio.Conn, msg string) {
+
+		log.Println("disconnected:", c.ID(), msg)
+		api.handleUserDisconnect(c)
+	})
 
 	api.Server.OnEvent("/", CreateUser, func(c socketio.Conn, msg string) string {
-		result := api.handleUserCreation(msg)
+		result := api.handleUserCreation(c, msg)
 		return result
 	})
 
 	api.Server.OnEvent("/", UserAuthentication, func(c socketio.Conn, msg string) string {
-		return api.handleUserAuthentication(msg)
+		return api.handleUserAuthentication(c, msg)
 	})
 
 	api.Server.OnEvent("/", UpdateUser, func(c socketio.Conn, msg string) string {
-		return api.handleUserUpdate(msg)
+		return api.handleUserUpdate(c, msg)
 	})
 
 	api.Server.OnEvent("/", CreateRoom, func(c socketio.Conn, msg string) string {
@@ -325,6 +441,10 @@ func (api *API) CreateHandlers() {
 
 	api.Server.OnEvent("/", getRooms, func(c socketio.Conn) string {
 		return api.handleSessionsRequest()
+	})
+
+	api.Server.OnEvent("/", UserRequestMatchMaking, func(c socketio.Conn, msg string) string {
+		return api.handleMatchMaking(c, msg)
 	})
 
 	api.Server.OnEvent("/", "bye", func(c socketio.Conn) string {

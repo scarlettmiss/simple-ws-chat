@@ -31,11 +31,11 @@ func New(sessions session.Repository, users user.Repository) (*Application, erro
 	return &app, nil
 }
 
-func (app *Application) CreateSession(userId string, capacity int, rating int, constraint string) (*session.Session, error) {
-	return app.sessionService.CreateSession(userId, capacity, rating, constraint)
+func (app *Application) CreateSession(owner *user.User, capacity int, minRating int, maxRating int, constraint string) (*session.Session, error) {
+	return app.sessionService.CreateSession(owner, capacity, minRating, maxRating, constraint)
 }
 
-func (app *Application) JoinSession(id string, userId string) error {
+func (app *Application) JoinSession(id string, userId string) (*session.Session, error) {
 	return app.sessionService.JoinSession(id, userId)
 }
 
@@ -59,8 +59,8 @@ func (app *Application) Authenticate(username string, password string) (*user.Us
 	return app.userService.Authenticate(username, password)
 }
 
-func (app *Application) UpdateUser(userId string, username *string, password *string) (*user.User, error) {
-	return app.userService.UpdateUser(userId, username, password)
+func (app *Application) UpdateUser(user *user.User) error {
+	return app.userService.UpdateUser(user)
 }
 
 func (app *Application) User(userId string) (*user.User, error) {
@@ -69,4 +69,8 @@ func (app *Application) User(userId string) (*user.User, error) {
 
 func (app *Application) DeleteUser(id string) error {
 	return app.userService.DeleteUser(id)
+}
+
+func (app *Application) RequestJoinSession(userId string) (*session.Session, error) {
+	return app.sessionService.RequestJoinSession(userId)
 }

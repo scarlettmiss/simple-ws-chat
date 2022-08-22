@@ -51,6 +51,7 @@
 
     <button onclick="createRoom()">create Room</button>
     <button onclick="onRoomSearchPress()">Rooms</button>
+    <button onclick="requestMatchMaking()">Find Room</button>
     </div>
     <div id="roomJoin">
         <div>
@@ -170,6 +171,7 @@
             setElementsAfterUser()
         });
     }
+
     function logUser() {
         console.log("clicked 2")
         const username = $('#username').val();
@@ -187,6 +189,23 @@
         });
     }
 
+    function requestMatchMaking() {
+        console.log("clicked requestMatchMaking")
+        const m = {"user_id": user.id}
+        socket.emit('userRequestMatchMaking', JSON.stringify(m), function(data) {
+            const parced = JSON.parse(data)
+            if (parced && !parced.error) {
+                room = parced
+                $('#messages').append($('<li>').text('room Joined: ' + data));
+            } else {
+                console.error(data)
+                $('#messages').append($('<li>').text('Err:  ' + data));
+            }
+            console.log(data)
+            setElementsAfterRoom()
+        });
+    }
+
     function createRoom() {
         console.log("create room")
         const skill = $('#skill').val();
@@ -198,7 +217,7 @@
             "constraint": visibility}
         socket.emit('createRoom', JSON.stringify(m), function(data) {
             const parced = JSON.parse(data)
-            if (parced) {
+            if (parced && !parced.error) {
                 room = parced
                 $('#messages').append($('<li>').text('room created: ' + data));
             } else {
@@ -214,7 +233,7 @@
             "session_id": room.id}
         socket.emit('userLeaveRoom', JSON.stringify(m), function(data) {
             const parced = JSON.parse(data)
-            if (parced) {
+            if (parced && !parced.error) {
                 room = undefined
                 $('#messages').append($('<li>').text('room Left: ' + data));
             } else {
@@ -231,7 +250,7 @@
             "session_id": roomId}
         socket.emit('userJoinRoom', JSON.stringify(m), function(data) {
             const parced = JSON.parse(data)
-            if (parced) {
+            if (parced && !parced.error) {
                 room = parced
                 $('#messages').append($('<li>').text('room Joined: ' + data));
             } else {
@@ -247,7 +266,7 @@
         socket.emit('getRooms', function(data) {
             console.log(data)
             const parced = JSON.parse(data)
-            if (parced) {
+            if (parced && !parced.error) {
                 rooms = parced
                 $('#messages').append($('<li>').text('rooms: ' + data));
             } else {
@@ -265,7 +284,7 @@
         }
         socket.emit('userMessage', JSON.stringify(m), function(data) {
             const parced = JSON.parse(data)
-            if (parced) {
+            if (parced&& !parced.error) {
                 $('#messages').append($('<li>').text(data));
             } else {
                 console.error(data)

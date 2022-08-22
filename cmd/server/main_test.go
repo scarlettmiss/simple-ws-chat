@@ -19,11 +19,11 @@ func TestSessionJoin(t *testing.T) {
 	u, err := app.CreateUser("scarlettmiss", "1234")
 	assert.Nil(t, err)
 
-	s, err := app.CreateSession(u.Id, 4, 1000, "none")
+	s, err := app.CreateSession(u, 4, 1000, 2000, "none")
 	assert.Nil(t, err)
 	assert.Len(t, s.Users(), 1)
 
-	err = app.LeaveSession(s.Id(), u.Id)
+	err = app.LeaveSession(s.Id(), u.Id())
 	assert.Nil(t, err)
 
 	_, err = sessionRepo.Session(s.Id())
