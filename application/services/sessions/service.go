@@ -26,13 +26,17 @@ func New(sessions session.Repository, users user.Repository) (*Service, error) {
 	}, nil
 }
 
-func (s *Service) CreateSession(userId string, capacity int, rating int, constraint session.Constraint) (*session.Session, error) {
-	sess, err := s.sessions.CreateSession(capacity, rating, constraint)
+func (s *Service) CreateSession(u *user.User, capacity int, minRating int, maxRating int, constraint string) (*session.Session, error) {
+	constr, err := session.ParseConstraint(constraint)
+	if err != nil {
+		return nil, err
+	}
+	sess, err := s.sessions.CreateSession(u, capacity, minRating, maxRating, constr)
 	if err != nil {
 		return nil, err
 	}
 
-	err = s.JoinSession(sess.Id(), userId)
+	_, err = s.JoinSession(sess.Id(), u.Id())
 	if err != nil {
 		return nil, err
 	}
@@ -40,19 +44,63 @@ func (s *Service) CreateSession(userId string, capacity int, rating int, constra
 	return sess, nil
 }
 
-func (s *Service) JoinSession(id, userId string) error {
-	sess, err := s.sessions.Session(id)
-	if err != nil {
-		return err
-	}
-	u, err := s.users.User(userId)
-	if err != nil {
-		return err
-	}
-	return sess.AddUser(u)
+func (s *Service) UserSession(userId string) (*session.Session, error) {
+	return s.sessions.UserSession(userId)
 }
 
-func (s *Service) LeaveSession(id, userId string) error {
+func (s *Service) JoinSession(id string, userId string) (*session.Session, error) {
+	sess, err := s.sessions.Session(id)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = s.UserSession(userId)
+	if err == nil {
+		return nil, session.ErrUserInSession
+	} else if !errors.Is(err, session.ErrNotFound) {
+		return nil, err
+	}
+
+	if len(sess.Users()) == sess.Capacity() {
+		return nil, session.ErrSessionFull
+	}
+
+	u, err := s.users.User(userId)
+	if err != nil {
+		return nil, err
+	}
+
+	err = sess.AddUser(u)
+	if err != nil {
+		return nil, err
+	}
+	return sess, nil
+}
+
+func (s *Service) RequestJoinSession(userId string) (*session.Session, error) {
+	sessions := s.sessions.Sessions()
+
+	if len(sessions) == 0 {
+		return nil, session.ErrNoSessions
+	}
+
+	var sess *session.Session
+	var err error
+	for k := range sessions {
+		sess, err = s.JoinSession(k, userId)
+		if err == nil {
+			break
+		}
+	}
+
+	if err != nil && errors.Is(err, session.ErrSessionFull) {
+		return nil, session.ErrNoSessions
+	}
+
+	return sess, err
+}
+
+func (s *Service) LeaveSession(id string, userId string) error {
 	sess, err := s.sessions.Session(id)
 	if err != nil {
 		return err
@@ -68,4 +116,16 @@ func (s *Service) LeaveSession(id, userId string) error {
 	}
 
 	return s.sessions.UpdateSession(sess)
+}
+
+func (s *Service) UpdateSession(sess *session.Session) error {
+	return s.sessions.UpdateSession(sess)
+}
+
+func (s *Service) Sessions() map[string]*session.Session {
+	return s.sessions.Sessions()
+}
+
+func (s *Service) Session(id string) (*session.Session, error) {
+	return s.sessions.Session(id)
 }
