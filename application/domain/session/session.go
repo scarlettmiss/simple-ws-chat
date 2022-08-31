@@ -37,7 +37,7 @@ type Session struct {
 	maxRating  int
 	constraint Constraint
 	owner      *user.User
-	messages   map[string]*message.Message
+	messages   []*message.Message
 }
 
 func New(owner *user.User, capacity int, minRating int, maxRating int, constraint Constraint) *Session {
@@ -49,7 +49,7 @@ func New(owner *user.User, capacity int, minRating int, maxRating int, constrain
 		maxRating:  maxRating,
 		constraint: constraint,
 		owner:      owner,
-		messages:   map[string]*message.Message{},
+		messages:   nil,
 	}
 }
 
@@ -131,11 +131,11 @@ func (s *Session) RemoveUser(userId string) error {
 	return nil
 }
 
-func (s *Session) Messages() map[string]*message.Message {
+func (s *Session) Messages() []*message.Message {
 	return s.messages
 }
 
 func (s *Session) AddMessage(message *message.Message) error {
-	s.messages[message.Id()] = message
+	s.messages = append(s.messages, message)
 	return nil
 }

@@ -16,6 +16,8 @@ type User struct {
 	online         bool
 	friends        []string
 	skillPoints    int
+	points         int
+	gamesPlayed    int
 	achievements   map[string]*achievement.Achievement
 	reputation     int
 	deleted        bool
@@ -33,8 +35,10 @@ func New(username string, password string) *User {
 		online:         true,
 		friends:        []string{},
 		achievements:   map[string]*achievement.Achievement{},
-		skillPoints:    1000, // starting at 1000p so points won't be negative of the first game is a loss
-		reputation:     100,  // 0 to 100 worse to best depending on the player behavior
+		skillPoints:    0, // xp
+		points:         0, // xp
+		gamesPlayed:    0,
+		reputation:     100, // 0 to 100 worse to best depending on the player behavior
 		deleted:        false,
 	}
 }
@@ -129,4 +133,20 @@ func (u *User) Password() string {
 
 func (u *User) SetPassword(password string) {
 	u.password = password
+}
+
+func (u *User) Points() int {
+	return u.points
+}
+
+func (u *User) SetPoints(points int) {
+	u.points = points
+}
+
+func (u *User) GamesPlayed() int {
+	return u.gamesPlayed
+}
+
+func (u *User) SetGamesPlayed(gamesPlayed int) {
+	u.gamesPlayed = gamesPlayed
 }

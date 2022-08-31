@@ -125,3 +125,7 @@ func (s *Service) UpdateSession(sess *session.Session) error {
 func (s *Service) Sessions() map[string]*session.Session {
 	return s.sessions.Sessions()
 }
+
+func (s *Service) Session(id string) (*session.Session, error) {
+	return s.sessions.Session(id)
+}

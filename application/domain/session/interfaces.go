@@ -19,6 +19,7 @@ type Service interface {
 	LeaveSession(id string, userId string) error
 	UserSession(userId string) (*Session, error)
 	Sessions() map[string]*Session
+	Session(id string) (*Session, error)
 	RequestJoinSession(userId string) (*Session, error)
 	UpdateSession(s *Session) error
 }

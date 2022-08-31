@@ -17,19 +17,19 @@ func New() *Repository {
 	}
 }
 
-func (r *Repository) CreateAchievement(nane string) (*achievement.Achievement, error) {
+func (r *Repository) CreateAchievement(name string) (*achievement.Achievement, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
-	_, err := r.AchievementByName(nane)
+	_, err := r.AchievementByName(name)
 	if err == nil {
 		return nil, achievement.ErrExists
 	} else if !errors.Is(err, achievement.ErrNotFound) {
 		return nil, err
 	}
 
-	a := achievement.New(nane)
+	a := achievement.New(name)
 
-	r.achievements[a.Name()] = a
+	r.achievements[a.Id()] = a
 
 	return a, nil
 }

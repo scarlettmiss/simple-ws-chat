@@ -87,11 +87,16 @@ func TestUserUpdate(t *testing.T) {
 	a, err := app.CreateAchievement("1st_Log")
 	assert.Nil(t, err)
 
-	u.SetUsername("sm")
-	u.AddAchievement(a)
-	u.SetOnline(true)
-	err = app.UpdateUser(u)
+	err = app.UserAddAchievement(u.Id(), a.Id())
 	assert.Nil(t, err)
+
+	name := "sm"
+	err = app.UserSetAccountInfo(u.Id(), &name, nil)
+	assert.Nil(t, err)
+
+	err = app.UserSetOnline(u.Id(), true)
+	assert.Nil(t, err)
+
 	assert.Equal(t, u.Online(), true)
 	assert.Equal(t, u.Username(), "sm")
 	assert.Len(t, u.Achievements(), 1)
@@ -115,16 +120,10 @@ func TestSessionUpdate(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, s.Users(), 1)
 
-	m, err := app.CreateMessage(u.Id(), "Hello")
-	assert.Nil(t, err)
-
-	err = s.AddMessage(m)
-	assert.Nil(t, err)
-
-	err = app.UpdateSession(s)
+	m, err := app.SessionAddMessage(s.Id(), u.Id(), "Hello")
 	assert.Nil(t, err)
 	assert.Len(t, s.Messages(), 1)
-	assert.Equal(t, s.Messages()[m.Id()], m)
+	assert.Equal(t, s.Messages()[0], m)
 }
 
 func TestSessionJoin(t *testing.T) {

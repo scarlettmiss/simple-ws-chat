@@ -69,20 +69,12 @@ func (app *Application) GetSessions() map[string]*session.Session {
 	return app.sessionService.Sessions()
 }
 
-func (app *Application) UpdateSession(sess *session.Session) error {
-	return app.sessionService.UpdateSession(sess)
-}
-
 func (app *Application) CreateUser(username string, password string) (*user.User, error) {
 	return app.userService.CreateUser(username, password)
 }
 
 func (app *Application) Authenticate(username string, password string) (*user.User, error) {
 	return app.userService.Authenticate(username, password)
-}
-
-func (app *Application) UpdateUser(user *user.User) error {
-	return app.userService.UpdateUser(user)
 }
 
 func (app *Application) User(userId string) (*user.User, error) {
@@ -115,4 +107,77 @@ func (app *Application) CreateMessage(userId string, message string) (*message.M
 
 func (app *Application) Messages() map[string]*message.Message {
 	return app.messageService.Messages()
+}
+
+func (app *Application) SessionAddMessage(sessId string, userId string, message string) (*message.Message, error) {
+	sess, err := app.sessionService.Session(sessId)
+	if err != nil {
+		return nil, err
+	}
+	m, err := app.CreateMessage(userId, message)
+	if err != nil {
+		return nil, err
+	}
+	err = sess.AddMessage(m)
+	if err != nil {
+		return nil, err
+	}
+
+	err = app.sessionService.UpdateSession(sess)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (app *Application) UserSetOnline(userId string, value bool) error {
+	u, err := app.User(userId)
+	if err != nil {
+		return err
+	}
+	u.SetOnline(value)
+	err = app.userService.UpdateUser(u)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (app *Application) UserSetAccountInfo(userId string, username *string, password *string) error {
+	u, err := app.User(userId)
+	if err != nil {
+		return err
+	}
+
+	if username != nil {
+		u.SetUsername(*username)
+	}
+
+	if password != nil {
+		u.SetPassword(*password)
+	}
+
+	err = app.userService.UpdateUser(u)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (app *Application) UserAddAchievement(userId string, achievementId string) error {
+	a, err := app.Achievement(achievementId)
+	if err != nil {
+		return err
+	}
+	u, err := app.User(userId)
+	if err != nil {
+		return err
+	}
+	u.AddAchievement(a)
+	err = app.userService.UpdateUser(u)
+	if err != nil {
+		return err
+	}
+	return nil
 }
