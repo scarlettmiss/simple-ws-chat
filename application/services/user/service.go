@@ -27,6 +27,10 @@ func (s *Service) User(id string) (*user.User, error) {
 	return s.users.User(id)
 }
 
+func (s *Service) Users() map[string]*user.User {
+	return s.users.Users()
+}
+
 func (s *Service) UpdateUser(user *user.User) error {
 	u, err := s.users.User(user.Id())
 	if err != nil {

@@ -1,12 +1,13 @@
-package achievment
+package achievement
 
 type Service interface {
-	Achivement(id string) (*Achievement, error)
-	CreateAchivement(username string, password string) (*Achievement, error)
+	Achievement(id string) (*Achievement, error)
+	CreateAchievement(name string) (*Achievement, error)
 }
 
 type Repository interface {
-	CreateAchivement(name string) (*Achievement, error)
-	Achivement(id string) (*Achievement, error)
-	Achivements() map[string]*Achievement
+	CreateAchievement(name string) (*Achievement, error)
+	Achievement(id string) (*Achievement, error)
+	Achievements() map[string]*Achievement
+	AchievementByName(name string) (*Achievement, error)
 }

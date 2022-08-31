@@ -20,6 +20,7 @@ type Service interface {
 	UserSession(userId string) (*Session, error)
 	Sessions() map[string]*Session
 	RequestJoinSession(userId string) (*Session, error)
+	UpdateSession(s *Session) error
 }
 
 type Repository interface {

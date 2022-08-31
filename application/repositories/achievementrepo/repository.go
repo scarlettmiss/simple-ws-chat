@@ -1,4 +1,4 @@
-package sessionrepo
+package achievementrepo
 
 import (
 	"errors"
@@ -17,33 +17,42 @@ func New() *Repository {
 	}
 }
 
-func (r *Repository) CreateAchievement(name string) (*achievement.Achievement, error) {
+func (r *Repository) CreateAchievement(nane string) (*achievement.Achievement, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
-	_, err := r.Achievement(name)
+	_, err := r.AchievementByName(nane)
 	if err == nil {
 		return nil, achievement.ErrExists
 	} else if !errors.Is(err, achievement.ErrNotFound) {
 		return nil, err
 	}
 
-	a := achievement.New(name)
+	a := achievement.New(nane)
 
 	r.achievements[a.Name()] = a
 
 	return a, nil
 }
 
-func (r *Repository) Achievement(name string) (*achievement.Achievement, error) {
+func (r *Repository) Achievement(id string) (*achievement.Achievement, error) {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	a, ok := r.achievements[name]
+	a, ok := r.achievements[id]
 	if !ok {
 		return nil, achievement.ErrNotFound
 	}
 
 	return a, nil
+}
+
+func (r *Repository) AchievementByName(name string) (*achievement.Achievement, error) {
+	for _, u := range r.achievements {
+		if u.Name() == name {
+			return u, nil
+		}
+	}
+	return nil, achievement.ErrNotFound
 }
 
 func (r *Repository) Achievements() map[string]*achievement.Achievement {

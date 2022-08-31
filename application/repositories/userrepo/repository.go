@@ -63,11 +63,11 @@ func (r *Repository) UserByUsername(username string) (*user.User, error) {
 	return r.userByUsername(username)
 }
 
-func (r *Repository) Users() (map[string]*user.User, error) {
+func (r *Repository) Users() map[string]*user.User {
 	r.mux.Lock()
 	defer r.mux.Unlock()
 
-	return r.users, nil
+	return r.users
 }
 
 func (r *Repository) UpdateUser(u *user.User) error {

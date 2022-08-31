@@ -3,6 +3,8 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/scarlettmiss/engine-w/application"
+	"github.com/scarlettmiss/engine-w/application/repositories/achievementrepo"
+	"github.com/scarlettmiss/engine-w/application/repositories/messagerepo"
 	"github.com/scarlettmiss/engine-w/application/repositories/sessionrepo"
 	"github.com/scarlettmiss/engine-w/application/repositories/userrepo"
 	"github.com/scarlettmiss/engine-w/socket"
@@ -28,10 +30,12 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 func main() {
 	sessionRepo := sessionrepo.New()
 	userRepo := userrepo.New()
+	achievementRepo := achievementrepo.New()
+	messageRepo := messagerepo.New()
 	// Creates default gin router with Logger and Recovery middleware already attached
 	router := gin.Default()
 
-	app, err := application.New(sessionRepo, userRepo)
+	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo)
 	if err != nil {
 		panic(err)
 	}

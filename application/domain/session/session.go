@@ -3,6 +3,7 @@ package session
 import (
 	"errors"
 	"github.com/lithammer/shortuuid"
+	"github.com/scarlettmiss/engine-w/application/domain/message"
 	"github.com/scarlettmiss/engine-w/application/domain/user"
 )
 
@@ -36,6 +37,7 @@ type Session struct {
 	maxRating  int
 	constraint Constraint
 	owner      *user.User
+	messages   map[string]*message.Message
 }
 
 func New(owner *user.User, capacity int, minRating int, maxRating int, constraint Constraint) *Session {
@@ -47,6 +49,7 @@ func New(owner *user.User, capacity int, minRating int, maxRating int, constrain
 		maxRating:  maxRating,
 		constraint: constraint,
 		owner:      owner,
+		messages:   map[string]*message.Message{},
 	}
 }
 
@@ -125,5 +128,14 @@ func (s *Session) RemoveUser(userId string) error {
 		break
 	}
 
+	return nil
+}
+
+func (s *Session) Messages() map[string]*message.Message {
+	return s.messages
+}
+
+func (s *Session) AddMessage(message *message.Message) error {
+	s.messages[message.Id()] = message
 	return nil
 }

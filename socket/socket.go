@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/scarlettmiss/engine-w/application"
+	"github.com/scarlettmiss/engine-w/application/domain/achievement"
 	"github.com/scarlettmiss/engine-w/application/domain/session"
 	"github.com/scarlettmiss/engine-w/application/domain/user"
 	"log"
@@ -28,7 +29,8 @@ const (
 	UserMessage            string = "userMessage"
 	ChatMessage            string = "chatMessage"
 	UserRequestMatchMaking string = "userRequestMatchMaking"
-	GiveAchivement         string = "giveAchivement"
+	RequestUsersScore      string = "requestUsersScore"
+	AddUserAchivement      string = "addUserAchivement"
 )
 
 func New(application *application.Application) (*API, error) {
@@ -87,6 +89,10 @@ type SessionCreationInfo struct {
 
 type UserSessionInfo struct {
 	SessionId string `json:"session_id"`
+}
+
+type AchievementInfo struct {
+	Id string `json:"id"`
 }
 
 type UserChatMessage struct {
@@ -255,8 +261,8 @@ func (api *API) handleUserJoinedRoom(c socketio.Conn, message string) string {
 
 }
 
-func (api *API) handleMatchMaking(c socketio.Conn, message string) string {
-	log.Println("Match-making msg:", message)
+func (api *API) handleMatchMaking(c socketio.Conn) string {
+	log.Println("Match-making:")
 	ctx := c.Context().(UserContext)
 	u, err := api.User(ctx.UserId)
 	if err != nil {
@@ -281,8 +287,8 @@ func (api *API) handleMatchMaking(c socketio.Conn, message string) string {
 		})
 }
 
-func (api *API) handleUserLeavesRoom(c socketio.Conn, message string) string {
-	log.Println("leave session:", message)
+func (api *API) handleUserLeavesRoom(c socketio.Conn) string {
+	log.Println("leave session:")
 	ctx := c.Context().(UserContext)
 	u, err := api.User(ctx.UserId)
 	if err != nil {
@@ -335,6 +341,7 @@ func (api *API) handleChatMessage(c socketio.Conn, message string) string {
 		return handleError("Could not send message")
 	}
 	ctx := c.Context().(UserContext)
+
 	u, err := api.User(ctx.UserId)
 	if err != nil {
 		return handleError(err.Error())
@@ -343,7 +350,16 @@ func (api *API) handleChatMessage(c socketio.Conn, message string) string {
 	if err != nil {
 		return handleError(err.Error())
 	}
-	resp := handleResponse(BroadcastUserMessage{Message: chatMessageInfo.Message, UserName: u.Username()})
+
+	m, err := api.CreateMessage(u.Id(), chatMessageInfo.Message)
+	if err != nil {
+		return handleError(err.Error())
+	}
+	err = s.AddMessage(m)
+	if err != nil {
+		return handleError(err.Error())
+	}
+	resp := handleResponse(BroadcastUserMessage{Message: m.Message(), UserName: u.Username()})
 
 	api.Server.BroadcastToRoom(c.Namespace(), s.Id(), ChatMessage, resp)
 	return resp
@@ -398,6 +414,47 @@ func (api *API) handleSessionsRequest() string {
 	return handleResponse(data)
 }
 
+func (api *API) handleUsersScoresRequest() string {
+	users := api.Users()
+	data := make([]UserInfoResponse, len(users))
+	i := 0
+	for _, v := range users {
+		data[i] = UserInfoResponse{
+			Id:       v.Id(),
+			Username: v.Username(),
+			Online:   v.Online(),
+			Skill:    v.SkillPoints(),
+		}
+		i++
+	}
+	return handleResponse(data)
+}
+
+func (api *API) handleAchievementAssignment(c socketio.Conn, message string) string {
+	var achievementInfo AchievementInfo
+	err := json.Unmarshal([]byte(message), &achievementInfo)
+	if err != nil {
+		return handleError(achievement.ErrNotFound.Error())
+
+	}
+	ctx := c.Context().(UserContext)
+	u, err := api.User(ctx.UserId)
+	if err != nil {
+		handleError(err.Error())
+	}
+	a, err := api.Achievement(achievementInfo.Id)
+	if err != nil {
+		handleError(err.Error())
+	}
+	u.AddAchievement(a)
+
+	err = api.UpdateUser(u)
+	if err != nil {
+		handleError(err.Error())
+	}
+	return handleResponse(GenericResponse{Message: "Updated"})
+}
+
 func (api *API) CreateHandlers() {
 	api.Server.OnConnect("/", func(c socketio.Conn) error {
 		c.SetContext(UserContext{})
@@ -432,7 +489,7 @@ func (api *API) CreateHandlers() {
 	})
 
 	api.Server.OnEvent("/", UserLeaveRoom, func(c socketio.Conn, msg string) string {
-		return api.handleUserLeavesRoom(c, msg)
+		return api.handleUserLeavesRoom(c)
 	})
 
 	api.Server.OnEvent("/", UserMessage, func(c socketio.Conn, msg string) string {
@@ -444,7 +501,15 @@ func (api *API) CreateHandlers() {
 	})
 
 	api.Server.OnEvent("/", UserRequestMatchMaking, func(c socketio.Conn, msg string) string {
-		return api.handleMatchMaking(c, msg)
+		return api.handleMatchMaking(c)
+	})
+
+	api.Server.OnEvent("/", RequestUsersScore, func(c socketio.Conn, msg string) string {
+		return api.handleUsersScoresRequest()
+	})
+
+	api.Server.OnEvent("/", AddUserAchivement, func(c socketio.Conn, msg string) string {
+		return api.handleAchievementAssignment(c, msg)
 	})
 
 	api.Server.OnEvent("/", "bye", func(c socketio.Conn) string {

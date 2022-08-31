@@ -2,14 +2,9 @@ package user
 
 import (
 	"github.com/lithammer/shortuuid"
+	"github.com/scarlettmiss/engine-w/application/domain/achievement"
 	"time"
 )
-
-type Achivement struct {
-	Type      string
-	Name      string
-	CreatedOn time.Time
-}
 
 type User struct {
 	id             string
@@ -21,7 +16,7 @@ type User struct {
 	online         bool
 	friends        []string
 	skillPoints    int
-	achivement     map[string]*Achivement
+	achievements   map[string]*achievement.Achievement
 	reputation     int
 	deleted        bool
 }
@@ -37,6 +32,7 @@ func New(username string, password string) *User {
 		lastSeenOnline: timestamp,
 		online:         true,
 		friends:        []string{},
+		achievements:   map[string]*achievement.Achievement{},
 		skillPoints:    1000, // starting at 1000p so points won't be negative of the first game is a loss
 		reputation:     100,  // 0 to 100 worse to best depending on the player behavior
 		deleted:        false,
@@ -103,12 +99,12 @@ func (u *User) SetSkillPoints(skillPoints int) {
 	u.skillPoints = skillPoints
 }
 
-func (u *User) Achivement() map[string]*Achivement {
-	return u.achivement
+func (u *User) Achievements() map[string]*achievement.Achievement {
+	return u.achievements
 }
 
-func (u *User) SetAchivement(achivement map[string]*Achivement) {
-	u.achivement = achivement
+func (u *User) AddAchievement(achievement *achievement.Achievement) {
+	u.achievements[achievement.Id()] = achievement
 }
 
 func (u *User) Reputation() int {
