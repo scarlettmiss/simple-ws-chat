@@ -18,6 +18,7 @@ type API struct {
 const (
 	CreateUser             string = "createUser"
 	UserAuthentication     string = "userAuthentication"
+	UserLogOut             string = "userLogOut"
 	UpdateUser             string = "updateUser"
 	CreateRoom             string = "createRoom"
 	getRooms               string = "getRooms"
@@ -456,6 +457,10 @@ func (api *API) CreateHandlers() {
 	api.Server.OnDisconnect("/", func(c socketio.Conn, msg string) {
 		log.Println("disconnected:", c.ID(), msg)
 		api.handleUserDisconnect(c)
+		err := c.Close()
+		if err != nil {
+			log.Println("Err: " + err.Error())
+		}
 	})
 
 	api.Server.OnEvent("/", CreateUser, func(c socketio.Conn, msg string) string {
@@ -503,8 +508,9 @@ func (api *API) CreateHandlers() {
 		return api.handleAchievementAssignment(c, msg)
 	})
 
-	api.Server.OnEvent("/", "bye", func(c socketio.Conn) {
-		c.Emit("bye")
+	api.Server.OnEvent("/", UserLogOut, func(c socketio.Conn) {
+		log.Println("logged out:", c.ID())
+		api.handleUserDisconnect(c)
 		err := c.Close()
 		if err != nil {
 			log.Println("Err: " + err.Error())
