@@ -237,8 +237,7 @@ func (api *API) broadcastSessionMessages(sess *session.Session, c socketio.Conn)
 		}
 		resp := handleResponse(BroadcastUserMessage{Message: v.Message(), UserName: u.Username()})
 		log.Println("Message: " + v.Message())
-
-		api.Server.BroadcastToRoom(c.Namespace(), sess.Id(), ChatMessage, resp)
+		c.Emit(ChatMessage, resp)
 	}
 }
 
