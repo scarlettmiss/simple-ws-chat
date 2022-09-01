@@ -3,10 +3,12 @@ package application
 import (
 	achievement "github.com/scarlettmiss/engine-w/application/domain/achievement"
 	"github.com/scarlettmiss/engine-w/application/domain/message"
+	"github.com/scarlettmiss/engine-w/application/domain/movement"
 	"github.com/scarlettmiss/engine-w/application/domain/session"
 	"github.com/scarlettmiss/engine-w/application/domain/user"
 	achievementService "github.com/scarlettmiss/engine-w/application/services/achievement"
 	messagesService "github.com/scarlettmiss/engine-w/application/services/message"
+	movementService "github.com/scarlettmiss/engine-w/application/services/movement"
 	sessionservice "github.com/scarlettmiss/engine-w/application/services/sessions"
 	userservice "github.com/scarlettmiss/engine-w/application/services/user"
 )
@@ -16,9 +18,10 @@ type Application struct {
 	userService        user.Service
 	achievementService achievement.Service
 	messageService     message.Service
+	movementsService   movement.Service
 }
 
-func New(sessions session.Repository, users user.Repository, achievements achievement.Repository, messages message.Repository) (*Application, error) {
+func New(sessions session.Repository, users user.Repository, achievements achievement.Repository, messages message.Repository, movement movement.Repository) (*Application, error) {
 	ss, err := sessionservice.New(sessions, users)
 	if err != nil {
 		return nil, err
@@ -39,11 +42,17 @@ func New(sessions session.Repository, users user.Repository, achievements achiev
 		return nil, err
 	}
 
+	moveS, err := movementService.New(movement)
+	if err != nil {
+		return nil, err
+	}
+
 	app := Application{
 		sessionService:     ss,
 		userService:        us,
 		achievementService: as,
 		messageService:     ms,
+		movementsService:   moveS,
 	}
 
 	return &app, nil
@@ -180,4 +189,33 @@ func (app *Application) UserAddAchievement(userId string, achievementId string) 
 		return err
 	}
 	return nil
+}
+
+func (app *Application) CreateMovement(userId string, movementType string, acceleration *movement.Point, position *movement.Point) (*movement.Movement, error) {
+	return app.movementsService.CreateMovement(movementType, userId, acceleration, position)
+}
+
+func (app *Application) Movements() map[string]*movement.Movement {
+	return app.movementsService.Movements()
+}
+
+func (app *Application) SessionAddMovement(sessId string, userId string, movementType string, acceleration *movement.Point, position *movement.Point) (*movement.Movement, error) {
+	sess, err := app.sessionService.Session(sessId)
+	if err != nil {
+		return nil, err
+	}
+	m, err := app.CreateMovement(userId, movementType, acceleration, position)
+	if err != nil {
+		return nil, err
+	}
+	err = sess.AddMovement(m)
+	if err != nil {
+		return nil, err
+	}
+
+	err = app.sessionService.UpdateSession(sess)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/lithammer/shortuuid"
 	"github.com/scarlettmiss/engine-w/application/domain/message"
+	"github.com/scarlettmiss/engine-w/application/domain/movement"
 	"github.com/scarlettmiss/engine-w/application/domain/user"
 )
 
@@ -38,6 +39,7 @@ type Session struct {
 	constraint Constraint
 	owner      *user.User
 	messages   []*message.Message
+	movements  []*movement.Movement
 }
 
 func New(owner *user.User, capacity int, minRating int, maxRating int, constraint Constraint) *Session {
@@ -50,6 +52,7 @@ func New(owner *user.User, capacity int, minRating int, maxRating int, constrain
 		constraint: constraint,
 		owner:      owner,
 		messages:   nil,
+		movements:  nil,
 	}
 }
 
@@ -137,5 +140,14 @@ func (s *Session) Messages() []*message.Message {
 
 func (s *Session) AddMessage(message *message.Message) error {
 	s.messages = append(s.messages, message)
+	return nil
+}
+
+func (s *Session) Movements() []*movement.Movement {
+	return s.movements
+}
+
+func (s *Session) AddMovement(movement *movement.Movement) error {
+	s.movements = append(s.movements, movement)
 	return nil
 }

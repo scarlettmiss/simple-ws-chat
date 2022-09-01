@@ -2,9 +2,11 @@ package main_test
 
 import (
 	"github.com/scarlettmiss/engine-w/application"
+	"github.com/scarlettmiss/engine-w/application/domain/movement"
 	"github.com/scarlettmiss/engine-w/application/domain/session"
 	"github.com/scarlettmiss/engine-w/application/repositories/achievementrepo"
 	"github.com/scarlettmiss/engine-w/application/repositories/messagerepo"
+	"github.com/scarlettmiss/engine-w/application/repositories/movementrepo"
 	"github.com/scarlettmiss/engine-w/application/repositories/sessionrepo"
 	"github.com/scarlettmiss/engine-w/application/repositories/userrepo"
 	"github.com/stretchr/testify/assert"
@@ -16,8 +18,9 @@ func TestUserCreation(t *testing.T) {
 	userRepo := userrepo.New()
 	achievementRepo := achievementrepo.New()
 	messageRepo := messagerepo.New()
+	movementRepo := movementrepo.New()
 
-	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo)
+	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo, movementRepo)
 	assert.Nil(t, err)
 
 	u, err := app.CreateUser("scarlettmiss", "1234")
@@ -30,8 +33,9 @@ func TestUserAuthentication(t *testing.T) {
 	userRepo := userrepo.New()
 	achievementRepo := achievementrepo.New()
 	messageRepo := messagerepo.New()
+	movementRepo := movementrepo.New()
 
-	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo)
+	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo, movementRepo)
 	assert.Nil(t, err)
 
 	_, err = app.CreateUser("scarlettmiss", "1234")
@@ -48,8 +52,9 @@ func TestAchivementCreation(t *testing.T) {
 	userRepo := userrepo.New()
 	achievementRepo := achievementrepo.New()
 	messageRepo := messagerepo.New()
+	movementRepo := movementrepo.New()
 
-	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo)
+	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo, movementRepo)
 	assert.Nil(t, err)
 
 	_, err = app.CreateAchievement("1st_Log")
@@ -61,8 +66,9 @@ func TestMessageCreation(t *testing.T) {
 	userRepo := userrepo.New()
 	achievementRepo := achievementrepo.New()
 	messageRepo := messagerepo.New()
+	movementRepo := movementrepo.New()
 
-	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo)
+	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo, movementRepo)
 	assert.Nil(t, err)
 
 	u, err := app.CreateUser("scarlettmiss", "1234")
@@ -77,8 +83,9 @@ func TestUserUpdate(t *testing.T) {
 	userRepo := userrepo.New()
 	achievementRepo := achievementrepo.New()
 	messageRepo := messagerepo.New()
+	movementRepo := movementrepo.New()
 
-	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo)
+	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo, movementRepo)
 	assert.Nil(t, err)
 
 	u, err := app.CreateUser("scarlettmiss", "1234")
@@ -109,8 +116,9 @@ func TestSessionUpdate(t *testing.T) {
 	userRepo := userrepo.New()
 	achievementRepo := achievementrepo.New()
 	messageRepo := messagerepo.New()
+	movementRepo := movementrepo.New()
 
-	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo)
+	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo, movementRepo)
 	assert.Nil(t, err)
 
 	u, err := app.CreateUser("scarlettmiss", "1234")
@@ -131,8 +139,9 @@ func TestSessionJoin(t *testing.T) {
 	userRepo := userrepo.New()
 	achievementRepo := achievementrepo.New()
 	messageRepo := messagerepo.New()
+	movementRepo := movementrepo.New()
 
-	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo)
+	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo, movementRepo)
 	assert.Nil(t, err)
 
 	u, err := app.CreateUser("scarlettmiss", "1234")
@@ -150,4 +159,29 @@ func TestSessionJoin(t *testing.T) {
 
 	ss := app.GetSessions()
 	assert.Len(t, ss, 0)
+}
+
+func TestSessionMovement(t *testing.T) {
+	sessionRepo := sessionrepo.New()
+	userRepo := userrepo.New()
+	achievementRepo := achievementrepo.New()
+	messageRepo := messagerepo.New()
+	movementRepo := movementrepo.New()
+
+	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo, movementRepo)
+	assert.Nil(t, err)
+
+	u, err := app.CreateUser("scarlettmiss", "1234")
+	assert.Nil(t, err)
+
+	s, err := app.CreateSession(u, 4, 1000, 2000, "none")
+	assert.Nil(t, err)
+	assert.Len(t, s.Users(), 1)
+
+	accelaration := &movement.Point{X: 1, Y: 3}
+	point := &movement.Point{X: 0, Y: 0}
+	m, err := app.SessionAddMovement(s.Id(), u.Id(), "Position", accelaration, point)
+	assert.Nil(t, err)
+	assert.Len(t, s.Movements(), 1)
+	assert.Equal(t, s.Movements()[0], m)
 }

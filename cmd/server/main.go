@@ -5,6 +5,7 @@ import (
 	"github.com/scarlettmiss/engine-w/application"
 	"github.com/scarlettmiss/engine-w/application/repositories/achievementrepo"
 	"github.com/scarlettmiss/engine-w/application/repositories/messagerepo"
+	"github.com/scarlettmiss/engine-w/application/repositories/movementrepo"
 	"github.com/scarlettmiss/engine-w/application/repositories/sessionrepo"
 	"github.com/scarlettmiss/engine-w/application/repositories/userrepo"
 	"github.com/scarlettmiss/engine-w/socket"
@@ -32,10 +33,11 @@ func main() {
 	userRepo := userrepo.New()
 	achievementRepo := achievementrepo.New()
 	messageRepo := messagerepo.New()
+	movementRepo := movementrepo.New()
 	// Creates default gin router with Logger and Recovery middleware already attached
 	router := gin.Default()
 
-	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo)
+	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo, movementRepo)
 	if err != nil {
 		panic(err)
 	}
