@@ -1,18 +1,12 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/scarlettmiss/engine-w/application"
-	"github.com/scarlettmiss/engine-w/application/repositories/achievementrepo"
-	"github.com/scarlettmiss/engine-w/application/repositories/messagerepo"
-	"github.com/scarlettmiss/engine-w/application/repositories/movementrepo"
-	"github.com/scarlettmiss/engine-w/application/repositories/sessionrepo"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 	"github.com/scarlettmiss/engine-w/application/repositories/userrepo"
-	"github.com/scarlettmiss/engine-w/socket"
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 )
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
@@ -28,46 +22,64 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "ui/home.html")
 }
 
+var schema = `
+CREATE TABLE person (
+    first_name text,
+    last_name text,
+    email text
+);
+
+CREATE TABLE place (
+    country text,
+    city text NULL,
+    telcode integer
+)`
+
 func main() {
-	sessionRepo := sessionrepo.New()
-	userRepo := userrepo.New()
-	achievementRepo := achievementrepo.New()
-	messageRepo := messagerepo.New()
-	movementRepo := movementrepo.New()
-	// Creates default gin router with Logger and Recovery middleware already attached
-	router := gin.Default()
-
-	app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo, movementRepo)
+	db, err := sqlx.Open("postgres", "user="+os.Getenv("DB_USERNAME")+" password="+os.Getenv("DB_PASSWORD")+" dbname=engineW sslmode=disable")
 	if err != nil {
-		panic(err)
+		log.Fatalln(err)
 	}
-
-	//create websocket server
-	wsAPI, err := socket.New(app)
-	if err != nil {
-		panic(err)
-	}
-
-	wsAPI.CreateHandlers()
-
-	router.GET("/socket.io/*any", gin.WrapH(wsAPI.Server))
-	router.POST("/socket.io/*any", gin.WrapH(wsAPI.Server))
-	router.GET("/", func(ctx *gin.Context) {
-		serveHome(ctx.Writer, ctx.Request)
-	})
-
-	router.NoRoute(func(ctx *gin.Context) { ctx.JSON(http.StatusNotFound, gin.H{}) })
-
-	// Start listening and serving requests
-	err = router.Run(":8080")
-
-	if err != nil {
-		panic(err)
-	}
-
-	waitForInterrupt := make(chan os.Signal, 1)
-	signal.Notify(waitForInterrupt, os.Interrupt, os.Kill)
-
-	<-waitForInterrupt
-	defer wsAPI.Server.Close()
+	//sessionRepo := sessionrepo.New()
+	userRepo := userrepo.New(db)
+	userRepo.Init()
+	//achievementRepo := achievementrepo.New()
+	//messageRepo := messagerepo.New()
+	//movementRepo := movementrepo.New()
+	//// Creates default gin router with Logger and Recovery middleware already attached
+	//router := gin.Default()
+	//
+	//app, err := application.New(sessionRepo, userRepo, achievementRepo, messageRepo, movementRepo)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	////create websocket server
+	//wsAPI, err := socket.New(app)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//wsAPI.CreateHandlers()
+	//
+	//router.GET("/socket.io/*any", gin.WrapH(wsAPI.Server))
+	//router.POST("/socket.io/*any", gin.WrapH(wsAPI.Server))
+	//router.GET("/", func(ctx *gin.Context) {
+	//	serveHome(ctx.Writer, ctx.Request)
+	//})
+	//
+	//router.NoRoute(func(ctx *gin.Context) { ctx.JSON(http.StatusNotFound, gin.H{}) })
+	//
+	//// Start listening and serving requests
+	//err = router.Run(":8080")
+	//
+	//if err != nil {
+	//	panic(err)
+	//}
+	//
+	//waitForInterrupt := make(chan os.Signal, 1)
+	//signal.Notify(waitForInterrupt, os.Interrupt, os.Kill)
+	//
+	//<-waitForInterrupt
+	//defer wsAPI.Server.Close()
 }
