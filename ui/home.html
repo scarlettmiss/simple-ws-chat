@@ -2,78 +2,11 @@
 <html lang="en">
 <head>
     <title>Socket.IO chat</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font: 13px Helvetica, Arial; }
-        form { flex: 1; background: #000; padding: 3px; width: 100%; padding-top: 16px}
-        form input { padding: 10px; width: 90%; margin-right: .5%; border: 1px black solid }
-        form button { background: rgb(130, 224, 255); border: none; padding: 10px; }
-        #messages { list-style-type: none; margin: 0; padding: 0; }
-        #messages li { padding: 5px 10px; }
-        #messages li:nth-child(odd) { background: #eee; }
-    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 </head>
 <body>
-<ul id="messages"></ul>
-
-<div id="userActions">
-    <div>
-        <label for="username" style="color: white">username</label>
-        <input id="username" autocomplete="off" />
-    </div>
-    <div>
-        <label for="password" style="color: white">password</label>
-        <input type="password" id="password" autocomplete="off" />
-    </div>
-    <button onclick="createUser()">create User</button>
-    <button onclick="logUser()">logIn</button>
-</div>
-
-<div id="roomActions" style="display: none">
-    <div id="roomCreation" >
-    <div>
-        <label for="skill" style="color: white">skill</label>
-        <input id="skill" type="range" min="1000" max="2000" step="100" value="50">
-    </div>
-    <div>
-        <label for="capacity" style="color: white">capacity</label>
-        <input id="capacity" type="range" min="2" max="8" step="1" value="4">
-    </div>
-
-    <div>
-        <label for="visibility" style="color: white">visibility</label>
-        <select id="visibility" name="Constraints">
-            <option value="none" selected>Public</option>
-            <option value="friendsOnly">Friends</option>
-            <option value="invitationOnly">Invitation</option>
-        </select>
-    </div>
-
-    <button onclick="createRoom()">create Room</button>
-    <button onclick="onRoomSearchPress()">Rooms</button>
-    <button onclick="requestMatchMaking()">Find Room</button>
-    </div>
-    <div id="roomJoin">
-        <div>
-            <label for="roomId" style="color: white">Room Id</label>
-            <input id="roomId">
-        </div>
-
-        <button onclick="joinRoom()">Join room</button>
-    </div>
-</div>
-
-
-<div id="messageActions" style="display: none">
-    <label for="message" style="color: white">Message</label>
-    <input id="message"/>
-    <button onclick="sendChatMessage()">Send</button>
-    <button onclick="leaveRoom()">Leave Room</button>
-
-</div>
-
-<script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
-<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
 <script>
     var socket = io("");
 
@@ -100,9 +33,12 @@
     socket.on('userLeftRoom', function(msg) {
         console.log(msg)
         const message = JSON.parse(msg)
-        if (message) {
-            $('#messages').append($('<li>').text(`user ${message.username} left`));
+        if(message.username !== user.username) {
+            if (message) {
+                $('#messages').append($('<li>').text(`user ${message.username} left`));
+            }
         }
+
     });
     var user
     var room
@@ -140,6 +76,14 @@
         }
     }
 
+    function capacityChange(e) {
+        $('#capacitylabel').html("Capacity: " +   e.target.value)
+    }
+
+    function skillChange(e) {
+        $('#skilllabel').html("Skill Level: " +   e.target.value)
+    }
+
     function setElementsAfterRoom() {
         if(room) {
             $('#userActions').hide()
@@ -157,23 +101,32 @@
     }
 
     function createUser() {
-        console.log("clicked")
+        $('#errorContainer').hide();
         const username = $('#username').val();
         const password = $('#password').val();
         socket.emit('createUser', JSON.stringify({"username": username, "password" : password}), function(data) {
             const parced = JSON.parse(data)
             if (parced && !parced.error) {
                 user = parced
-                $('#messages').append($('<li>').text('userCreated: ' + data));
+                $('#successContainer').show().html('User Created Successfully!');
             } else {
+                $('#errorContainer').show().html("Error: " + parced.error);
                 console.error(data)
             }
+            setTimeout(clearMessages, 2000)
+
             setElementsAfterUser()
         });
     }
 
+    function clearMessages(){
+        $('#errorContainer').hide();
+        $('#successContainer').hide();
+
+    }
+
     function logUser() {
-        console.log("clicked 2")
+        $('#errorContainer').hide();
         const username = $('#username').val();
         const password = $('#password').val();
         const m =  {"username": username, "password" : password}
@@ -181,70 +134,81 @@
             const parced = JSON.parse(data)
             if (parced && !parced.error) {
                 user = parced
-                $('#messages').append($('<li>').text('user Logged in: ' + data));
+                $('#successContainer').show().html('user logged in');
             } else {
+                $('#errorContainer').show().html("Error: " + parced.error);
                 console.error(data)
             }
+            setTimeout(clearMessages, 2000)
             setElementsAfterUser()
         });
     }
 
     function requestMatchMaking() {
-        console.log("clicked requestMatchMaking")
         const m = {"user_id": user.id}
         socket.emit('userRequestMatchMaking', JSON.stringify(m), function(data) {
             const parced = JSON.parse(data)
             if (parced && !parced.error) {
                 room = parced
-                $('#messages').append($('<li>').text('room Joined: ' + data));
+                $('#successContainer').show().html('room Joined!');
             } else {
                 console.error(data)
-                $('#messages').append($('<li>').text('Err:  ' + data));
+                $('#errorContainer').show().html("Error: " + parced.error);
             }
+
+            setTimeout(clearMessages, 2000)
             console.log(data)
             setElementsAfterRoom()
         });
     }
 
     function createRoom() {
-        console.log("create room")
         const skill = $('#skill').val();
         const capacity = $('#capacity').val();
         const visibility = $('#visibility').val();
-        const m = {"user_id": user.id,
+
+        const m = {
+            "user_id": user.id,
             "capacity": Number(capacity),
             "rating": Number(skill),
-            "constraint": visibility}
+            "constraint": visibility
+        }
+
         socket.emit('createRoom', JSON.stringify(m), function(data) {
             const parced = JSON.parse(data)
             if (parced && !parced.error) {
                 room = parced
-                $('#messages').append($('<li>').text('room created: ' + data));
+                $('#successContainer').show().html('room created!');
             } else {
+                $('#errorContainer').show().html("Error: " + parced.error);
                 console.error(data)
             }
+
+            setTimeout(clearMessages, 2000)
+
             setElementsAfterRoom()
         });
     }
 
     function leaveRoom() {
-        console.log("Leave room")
         const m = {"user_id": user.id,
             "session_id": room.id}
         socket.emit('userLeaveRoom', JSON.stringify(m), function(data) {
             const parced = JSON.parse(data)
             if (parced && !parced.error) {
                 room = undefined
-                $('#messages').append($('<li>').text('room Left: ' + data));
+                $('#successContainer').show().html('Left Room');
             } else {
+                $('#errorContainer').show().html("Error: " + parced.error);
                 console.error(data)
             }
+            setTimeout(clearMessages, 2000)
+
             setElementsAfterRoom()
         });
     }
 
     function joinRoom() {
-        console.log("Join room")
         const roomId = $('#roomId').val();
         const m = {"user_id": user.id,
             "session_id": roomId}
@@ -252,10 +216,12 @@
             const parced = JSON.parse(data)
             if (parced && !parced.error) {
                 room = parced
-                $('#messages').append($('<li>').text('room Joined: ' + data));
+                $('#successContainer').show().html('Room Joined');
             } else {
+                $('#errorContainer').show().html("Error: " + parced.error);
                 console.error(data)
             }
+            setTimeout(clearMessages, 2000)
             setElementsAfterRoom()
             clearRoomInterval()
         });
@@ -268,8 +234,11 @@
             const parced = JSON.parse(data)
             if (parced && !parced.error) {
                 rooms = parced
-                $('#messages').append($('<li>').text('rooms: ' + data));
+                rooms.forEach(room => {
+                    $('#rooms').append($('<li>').text('room: ' + JSON.stringify(room)));
+                })
             } else {
+                $('#errorContainer').show().html("Error: " + parced.error);
                 console.error(data)
             }
         });
@@ -287,10 +256,97 @@
             if (parced&& !parced.error) {
                 $('#messages').append($('<li>').text(data));
             } else {
+                $('#errorContainer').show().html("Error: " + parced.error);
                 console.error(data)
             }
         });
     }
 </script>
+<div id="successContainer" class="absolute left-0 top-0 w-full hidden p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-100 dark:bg-gray-800 dark:text-green-400" role="alert">
+</div>
+<div id="errorContainer" class="absolute left-0 top-0 w-full hidden p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400" role="alert">
+</div>
+<div id="userActions" class="mx-auto mt-16 max-w-xl sm:mt-20">
+    <div class="mt-10">
+        <div class="sm:col-span-3">
+            <label for="username" class="block text-sm font-medium leading-6 text-gray-900">Username</label>
+            <div class="mt-2.5">
+                <input type="text" name="username" id="username" autocomplete="username" class="block w-full rounded-md border-0 px-3.5 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+            </div>
+        </div>
+    </div>
+    <div class="mt-2">
+        <div class="sm:col-span-3">
+            <label for="password" class="block text-sm font-medium leading-6 text-gray-900">Password</label>
+            <div class="mt-2">
+                <input type="password" name="password" id="password" autocomplete="current-password" class="block w-full rounded-md border-0 px-3.5 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+            </div>
+        </div>
+    </div>
+    <div class="flex align-center mt-4 gap-x-2">
+        <div class="flex-1">
+            <button onclick="createUser()" class="block w-full rounded-md bg-indigo-600 px-3.5 py-2.5 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Create User</button>
+        </div>
+        <div class="flex-1">
+            <button onclick="logUser()" class="block w-full rounded-md bg-indigo-600 px-3.5 py-2.5 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Login</button>
+        </div>
+    </div>
+</div>
+<div id="roomActions" class="hidden mx-auto mt-16 max-w-xl sm:mt-20">
+    <div id="roomCreation" >
+        <div>
+            <label id="skilllabel"  for="skill" class="block text-sm font-medium leading-6 text-gray-900">Skill Level: 50 </label>
+            <input oninput="skillChange(event)" id="skill" type="range" min="1000" max="2000" step="100" value="50" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+        </div>
+        <div>
+            <label id="capacitylabel" for="capacity" class="block text-sm font-medium leading-6 text-gray-900">Capacity: 4</label>
+            <input oninput="capacityChange(event)" id="capacity" type="range" min="2" max="8" step="1" value="4" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700">
+        </div>
+
+        <div class="mt-2">
+            <label for="visibility" class="block text-sm font-medium leading-6 text-gray-900">Visibility</label>
+            <select id="visibility" name="Constraints" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-256 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+                <option value="none" selected>Public</option>
+                <option value="friendsOnly">Friends</option>
+                <option value="invitationOnly">Invitation</option>
+            </select>
+        </div>
+
+        <div class="flex align-center mt-4 gap-x-2">
+            <div class="flex-1">
+                <button onclick="createRoom()" class="block w-full rounded-md bg-indigo-600 px-3.5 py-2.5 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Create Room</button>
+            </div>
+            <div class="flex-1">
+                <button onclick="onRoomSearchPress()" class="block w-full rounded-md bg-indigo-600 px-3.5 py-2.5 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Rooms</button>
+            </div>
+            <div class="flex-1">
+                <button onclick="requestMatchMaking()" class="block w-full rounded-md bg-indigo-600 px-3.5 py-2.5 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Find Room</button>
+            </div>
+        </div>
+    </div>
+    <div id="roomJoin" class="hidden mx-auto mt-16 max-w-xl sm:mt-20">
+        <div>
+            <label for="roomId" class="block text-sm font-medium leading-6 text-gray-900">Room Id</label>
+
+            <div class="mt-2.5">
+                <input type="text" name="username" id="roomId" class="block w-full rounded-md border-0 px-3.5 py-2 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6">
+            </div>
+        </div>
+        <div class="flex align-center mt-4 gap-x-2">
+            <div class="flex-1">
+                <button onclick="joinRoom()" class="block w-full rounded-md bg-indigo-600 px-3.5 py-2.5 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Join room with code</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="messageActions" style="display: none">
+    <label for="message" style="color: white">Message</label>
+    <input id="message"/>
+    <button onclick="sendChatMessage()">Send</button>
+    <button onclick="leaveRoom()">Leave Room</button>
+
+</div>
+<ul id="messages"></ul>
+<ul id="rooms"></ul>
 </body>
 </html>

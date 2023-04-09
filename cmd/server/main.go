@@ -8,24 +8,10 @@ import (
 	"github.com/scarlettmiss/engine-w/application/repositories/sessionrepo"
 	"github.com/scarlettmiss/engine-w/application/repositories/userrepo"
 	"github.com/scarlettmiss/engine-w/socket"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 )
-
-func serveHome(w http.ResponseWriter, r *http.Request) {
-	log.Println(r.URL)
-	if r.URL.Path != "/" {
-		http.Error(w, "Not found", http.StatusNotFound)
-		return
-	}
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	http.ServeFile(w, r, "ui/home.html")
-}
 
 func main() {
 	sessionRepo := sessionrepo.New()
@@ -50,9 +36,7 @@ func main() {
 
 	router.GET("/socket.io/*any", gin.WrapH(wsAPI.Server))
 	router.POST("/socket.io/*any", gin.WrapH(wsAPI.Server))
-	router.GET("/", func(ctx *gin.Context) {
-		serveHome(ctx.Writer, ctx.Request)
-	})
+	router.StaticFile("/", "./ui/home.html") // from project root
 
 	router.NoRoute(func(ctx *gin.Context) { ctx.JSON(http.StatusNotFound, gin.H{}) })
 
